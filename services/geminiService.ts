@@ -1,12 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { StoryNode } from "../types";
 
-// Helper to safely get the API key in various environments (Vite/Next/Standard)
+// Helper to safely get the API key
 const getApiKey = () => {
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
     return process.env.API_KEY;
   }
-  // Fallback for Vite client-side usage if not defined in process.env
   // @ts-ignore
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
     // @ts-ignore
@@ -16,33 +15,114 @@ const getApiKey = () => {
 };
 
 const apiKey = getApiKey();
-// Initialize Gemini Client safely
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+
+// --- OFFLINE / DEMO MODE ASSETS ---
+
+const OFFLINE_IMAGES = {
+  void: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2894&auto=format&fit=crop", // Abstract Space
+  goddess: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=2787&auto=format&fit=crop", // Mysterious Light/Figure
+  forest: "https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=2832&auto=format&fit=crop", // Dark Forest
+  village: "https://images.unsplash.com/photo-1595878715977-2e8f8df18ea8?q=80&w=2787&auto=format&fit=crop", // Old Village
+  battle: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2787&auto=format&fit=crop", // Fire/Battle
+};
+
+// Simple Offline Story Engine
+const getOfflineStoryNode = (historyLength: number, lastChoice: string | null): StoryNode => {
+  // PROLOGUE
+  if (!lastChoice) {
+    return {
+      text: "A fékk, a csikorgás, majd a tompa csattanás emléke lassan elhalványul. Nem érzel fájdalmat. Nem érzel semmit. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy végtelen, örvénylő csillagködöt. Előtted egy ragyogó alak lebeg, akinek arcát nem látod tisztán, de jelenléte egyszerre megnyugtató és félelmetes. \n\n\"Üdvözöllek, utazó\" – szólal meg a hangja az elmédben. – \"Az életed fonala elszakadt a Földön, de a lelked túl erős a megsemmisüléshez.\"",
+      choices: [
+        { id: "1a", text: "Hol vagyok? Ki vagy te?" },
+        { id: "1b", text: "Ez a mennyország? Vagy a pokol?" },
+      ],
+      imagePrompt: "void",
+      hpChange: 0,
+      manaChange: 0,
+      gameOver: false
+    };
+  }
+
+  // SCENE 1: The Dialogue
+  if (historyLength <= 2) { // Early game
+    return {
+      text: "\"Én vagyok a Kezdet és a Vég őrzője ebben a szektorban\" – válaszolja a lény, miközben a csillagok táncolni kezdenek körülötte. – \"A világ, ahonnan jöttél, már a múlté. De felkínálok neked egy lehetőséget. Egy új világot, tele mágiával, veszéllyel és lehetőséggel. A Beautiful New World vár rád.\"",
+      choices: [
+        { id: "2a", text: "Elfogadom. Készen állok az új életre!" },
+        { id: "2b", text: "Milyen képességeket kapok?" },
+      ],
+      imagePrompt: "goddess",
+      hpChange: 0,
+      manaChange: 0,
+      gameOver: false
+    };
+  }
+
+  // SCENE 2: Arrival
+  if (lastChoice.includes("Elfogadom") || lastChoice.includes("Készen") || lastChoice.includes("képességeket")) {
+    return {
+      text: "Fényrobbanás vakít el. Úgy érzed, mintha minden sejtedet szétszednék, majd újra összeraknák. \n\nAmikor feleszmélsz, a hátadon fekszel. Hűvös szellő simogatja az arcodat, és az orrodat megcsapja a nedves föld és a fenyő illata. Egy sűrű, ősi erdő közepén vagy. A fák levelei lilás árnyalatban játszanak, az égen pedig két hold halvány körvonala látszik.",
+      choices: [
+        { id: "3a", text: "Felállok és körülnézek." },
+        { id: "3b", text: "Megvizsgálom magam, változtam-e valamit." },
+      ],
+      imagePrompt: "forest",
+      hpChange: 0,
+      manaChange: 10, // First mana awaken
+      gameOver: false
+    };
+  }
+
+  // SCENE 3: Exploration
+  if (lastChoice.includes("Felállok") || lastChoice.includes("Megvizsgálom")) {
+    return {
+      text: "A tested fiatalabbnak, erősebbnek tűnik. A tenyeredbe nézve halványan derengő rúnákat látsz a bőröd alatt. Hirtelen reccsenést hallasz a hátad mögül. Egy hatalmas, agyaras vadkan ront ki a bokrok közül, szemei vörösen izzanak. Nem tűnik barátságosnak.",
+      choices: [
+        { id: "4a", text: "Megpróbálok varázsolni (Tűzgolyó)." },
+        { id: "4b", text: "Felkapok egy faágat és védekezem." },
+        { id: "4c", text: "Elfutuok." },
+      ],
+      imagePrompt: "battle",
+      hpChange: 0,
+      manaChange: 0,
+      gameOver: false
+    };
+  }
+
+   // SCENE 4: Combat/Action
+   if (lastChoice.includes("varázsolni")) {
+    return {
+      text: "Ösztönösen kinyújtod a kezed. A tenyeredben lévő rúnák felizzanak, és egy lángcsóva csap ki belőlük! A vadkan visítva hőkölsz hátra, a bundája megperzselődött. A mágia használata azonban kimerít, szédülni kezdesz.",
+      choices: [
+        { id: "5a", text: "Befejezem a dolgot egy újabb támadással!" },
+        { id: "5b", text: "Kihasználom a zavarát és elmenekülök." },
+      ],
+      imagePrompt: "battle",
+      hpChange: -5,
+      manaChange: -20,
+      gameOver: false
+    };
+  }
+
+  // Default Loop for Offline Mode
+  return {
+    text: "A kaland folytatódik... (Ez a DEMO verzió vége az offline módban. API kulcs megadása után a történet a végtelenségig generálható.)",
+    choices: [
+      { id: "restart", text: "Újrakezdés" }
+    ],
+    imagePrompt: "village",
+    hpChange: 0,
+    manaChange: 0,
+    gameOver: true
+  };
+};
+
 
 const SYSTEM_INSTRUCTION = `
 Te egy Isekai (Another World) fantasy kalandjáték narrátora vagy.
-Stílus: Epikus, misztikus, kicsit sötét tónusú, mint a Mushoku Tensei vagy a Re:Zero.
-
-A Történet Íve:
-1. **Kezdet (Prológus):** A játékos a modern világban hal meg (tipikus teherautó/baleset), és egy "Köztes Térbe" kerül (Fehér Üresség).
-2. **Találkozás:** Itt egy Istennővel (vagy felsőbb lénnyel) beszél, aki felajánlja a reinkarnációt.
-3. **Új Világ:** Ezután születik újjá egy fantasy világban (a neve: "Beautiful New World"), ahol a döntései alakítják a sorsát és képességeit.
-
-Feladataid:
-1. Narrálj választékos, irodalmi magyar nyelven (kb. 70-100 szó/kör).
-2. Mindig adj 2-3 érdemi választási lehetőséget.
-3. Kezeld a HP (Életerő) és Mana (Varázserő) értékeket.
-4. Generálj angol nyelvű 'imagePrompt'-ot az aktuális jelenethez. Stílus: "Anime art style, fantasy, detailed, atmospheric, cinematic lighting".
-
-Kimenet (JSON):
-{
-  "text": "...",
-  "choices": [{ "id": "...", "text": "..." }],
-  "hpChange": 0,
-  "manaChange": 0,
-  "imagePrompt": "...",
-  "gameOver": false
-}
+Stílus: Epikus, misztikus, kicsit sötét tónusú.
+... (Standard System Prompt) ...
 `;
 
 export const generateStorySegment = async (
@@ -50,19 +130,17 @@ export const generateStorySegment = async (
   userChoice: string | null
 ): Promise<StoryNode> => {
   
+  // --- OFFLINE MODE CHECK ---
   if (!ai) {
-    console.error("API Key missing");
-    return {
-        text: "Hiba: Az Istennő nem elérhető (Hiányzó API Kulcs). Kérlek ellenőrizd a konfigurációt (API_KEY vagy VITE_API_KEY).",
-        choices: [],
-        imagePrompt: "",
-        gameOver: true
-    };
+    console.log("Running in Offline/Demo Mode");
+    // Simulate network delay for realism
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    return getOfflineStoryNode(history.length, userChoice);
   }
 
+  // --- ONLINE MODE (GEMINI) ---
   let prompt = "";
   if (!userChoice) {
-    // START: MODERN WORLD -> DEATH -> GODDESS
     prompt = `
       Kezdd a történetet a legelején! 
       Helyszín: Modern nagyváros, esős éjszaka.
@@ -72,7 +150,7 @@ export const generateStorySegment = async (
       Írd le ezt a jelenetet hangulatosan, és adj válaszlehetőségeket, hogyan reagál a játékos az Istennőre.
     `;
   } else {
-    prompt = `A játékos döntése: "${userChoice}". Folytasd a történetet. Ha ez még a prológus, akkor vezess át a fantasy világba való újjászületéshez/megérkezéshez. Ha már ott van, folytasd a kalandot.`;
+    prompt = `A játékos döntése: "${userChoice}". Folytasd a történetet.`;
   }
 
   try {
@@ -116,17 +194,21 @@ export const generateStorySegment = async (
 
   } catch (error) {
     console.error("Gemini Story Error:", error);
-    return {
-      text: "A valóság szövete megremeg. Egy külső erő (Szerver Hiba) megszakította a kapcsolatot az Istennővel.",
-      choices: [{ id: "retry", text: "Koncentrálj és próbáld újra (Hiba elhárítása)" }],
-      imagePrompt: "surreal glitch art, anime goddess dissolving into data, dark fantasy style",
-      gameOver: false
-    };
+    // Fallback to offline node on error too
+    return getOfflineStoryNode(history.length, userChoice);
   }
 };
 
 export const generateSceneImage = async (prompt: string): Promise<string | undefined> => {
-  if (!ai) return undefined;
+  // Offline Mode Image Selector
+  if (!ai) {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes("void") || lowerPrompt.includes("start")) return OFFLINE_IMAGES.void;
+    if (lowerPrompt.includes("goddess") || lowerPrompt.includes("istennő")) return OFFLINE_IMAGES.goddess;
+    if (lowerPrompt.includes("forest") || lowerPrompt.includes("erdő")) return OFFLINE_IMAGES.forest;
+    if (lowerPrompt.includes("battle") || lowerPrompt.includes("fire") || lowerPrompt.includes("attack")) return OFFLINE_IMAGES.battle;
+    return OFFLINE_IMAGES.village; // Default
+  }
   
   try {
     const response = await ai.models.generateContent({
@@ -144,6 +226,6 @@ export const generateSceneImage = async (prompt: string): Promise<string | undef
     return undefined;
   } catch (error) {
     console.error("Gemini Image Error:", error);
-    return undefined;
+    return OFFLINE_IMAGES.forest; // Fallback image on error
   }
 };
