@@ -1,8 +1,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { StoryNode } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get the API key in various environments (Vite/Next/Standard)
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  // Fallback for Vite client-side usage if not defined in process.env
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
+  }
+  return "";
+};
+
+const apiKey = getApiKey();
+// Initialize Gemini Client safely
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 const SYSTEM_INSTRUCTION = `
 Te egy Isekai (Another World) fantasy kalandjáték narrátora vagy.
@@ -35,6 +50,16 @@ export const generateStorySegment = async (
   userChoice: string | null
 ): Promise<StoryNode> => {
   
+  if (!ai) {
+    console.error("API Key missing");
+    return {
+        text: "Hiba: Az Istennő nem elérhető (Hiányzó API Kulcs). Kérlek ellenőrizd a konfigurációt (API_KEY vagy VITE_API_KEY).",
+        choices: [],
+        imagePrompt: "",
+        gameOver: true
+    };
+  }
+
   let prompt = "";
   if (!userChoice) {
     // START: MODERN WORLD -> DEATH -> GODDESS
@@ -101,6 +126,8 @@ export const generateStorySegment = async (
 };
 
 export const generateSceneImage = async (prompt: string): Promise<string | undefined> => {
+  if (!ai) return undefined;
+  
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image",
