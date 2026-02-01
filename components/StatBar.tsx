@@ -13,14 +13,14 @@ const StatBar: React.FC<StatBarProps> = ({ label, value, max, color, icon }) => 
 
   return (
     <div className="flex flex-col w-full mb-4 group">
-      <div className="flex justify-between items-end mb-2 text-xs uppercase tracking-[0.2em] text-amber-500/90 font-serif font-bold group-hover:text-amber-300 transition-colors duration-300">
-        <span className="flex items-center gap-2 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">{icon} {label}</span>
-        <span className="font-sans text-amber-700/70 group-hover:text-amber-500/70 transition-colors">{value} / {max}</span>
+      <div className="flex justify-between items-end mb-2 text-xs uppercase tracking-[0.2em] text-amber-400 font-serif font-bold group-hover:text-amber-200 transition-colors duration-300">
+        <span className="flex items-center gap-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">{icon} {label}</span>
+        <span className="font-sans text-amber-600 group-hover:text-amber-400 transition-colors font-semibold text-sm">{value} / {max}</span>
       </div>
       
-      <div className="relative w-full h-2 bg-[#0a0500] rounded-full overflow-hidden border border-amber-900/30 shadow-inner">
+      <div className="relative w-full h-2 bg-[#0a0500] rounded-full overflow-hidden border border-amber-900/50 shadow-inner">
         {/* Background pulsing glow */}
-        <div className={`absolute top-0 left-0 bottom-0 w-full opacity-30 ${color} blur-sm transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
+        <div className={`absolute top-0 left-0 bottom-0 w-full opacity-40 ${color} blur-sm transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
         
         {/* The actual bar */}
         <div 
@@ -28,8 +28,8 @@ const StatBar: React.FC<StatBarProps> = ({ label, value, max, color, icon }) => 
           style={{ width: `${percentage}%` }}
         >
           {/* Shine effect on top */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/40 opacity-50"></div>
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-black/20"></div>
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/60 opacity-60"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-black/30"></div>
         </div>
       </div>
     </div>

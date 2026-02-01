@@ -1,163 +1,138 @@
-import { StoryNode } from "../types";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { StoryNode, GameStats } from "../types";
 
-// --- STATIC STORY ENGINE ---
+// Initialize Gemini Client
+// Note: process.env.API_KEY is assumed to be available in the environment
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null): StoryNode => {
-  // A historyLength alapján határozzuk meg a történet pontjait
-  
-  // 1. KÖR: KEZDET (0) - Űr / Semmi
-  if (historyLength === 0) {
-    return {
-      text: "A fékcsikorgás emléke lassan elhalványul. Nem érzel fájdalmat, csak végtelen csendet. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy örvénylő, sötét csillagködöt. Egyedül vagy a semmiben. A tested súlytalan, mintha vízben lebegnél.",
-      choices: [
-        { id: "1a", text: "Kiáltok a sötétségbe!" },
-        { id: "1b", text: "Csendben várok és figyelek." },
-      ],
-      imagePrompt: "intro",
-      hpChange: 0,
-      manaChange: 0
-    };
-  }
+const MODEL_NAME = "gemini-2.5-flash"; // Using Flash for speed/cost balance in interactive games
 
-  // 2. KÖR: ISTENNŐ (2) - Fény
-  if (historyLength === 2) {
-    return {
-      text: "Egy vakító fényoszlop hasít bele a sötétségbe. A fényből egy női alak lép ki, akinek arca folyamatosan változik – hol fiatal lány, hol idős bölcs –, de kisugárzása nyugodt és ősi.\n\n\"Üdvözöllek, Elveszett Lélek\" – szólal meg az elmédben. – \"A Földön véget ért az utad, de a sors fonalai még nem varrták el a történetedet. Felajánlok egy új életet a Beautiful New World világában.\"",
-      choices: [
-        { id: "2a", text: "Hálásan elfogadom az ajánlatot." },
-        { id: "2b", text: "Milyen árat kell fizetnem ezért?" },
-      ],
-      imagePrompt: "goddess", 
-      hpChange: 0,
-      manaChange: 0
-    };
-  }
-
-  // 3. KÖR: ERDŐ (4) - Sötét erdő
-  if (historyLength === 4) {
-    return {
-      text: "\"Az ár csupán annyi, hogy élned kell\" – mosolyog az Istennő, majd egy kézmozdulattal eloszlatja a csillagokat.\n\nZuhanást érzel, majd hirtelen földet érsz. Puha mohán fekszel egy sűrű, ősi erdő közepén. A fák levelei lilásan derengenek a félhomályban, és két hold világít az égen. A levegő tele van nyers mágiával.",
-      choices: [
-        { id: "3a", text: "Felállok és elindulok az ösvényen." },
-        { id: "3b", text: "Megvizsgálom a környezetemet mágiát keresve." },
-      ],
-      imagePrompt: "forest",
-      hpChange: 0,
-      manaChange: 10
-    };
-  }
-
-  // 4. KÖR: FARKAS (6) - Vörös szemek
-  if (historyLength === 6) {
-    return {
-      text: "Alig teszel pár lépést, amikor mély morgást hallasz a hátad mögül. A bokrok közül egy hatalmas, fekete bundájú Árnyfarkas ugrik elő! A szemei vörösen izzanak, agyaraiból savas nyál csepeg a földre. Éhesnek tűnik.",
-      choices: [
-        { id: "4a", text: "Tűzgolyót dobok rá! (Harc)" },
-        { id: "4b", text: "Felmászok egy magas fára. (Menekülés)" },
-      ],
-      imagePrompt: "wolf",
-      hpChange: -5,
-      manaChange: 0
-    };
-  }
-
-  // 5. KÖR: KONFLIKTUS VÉGE (8)
-  if (historyLength === 8) {
-    const isFight = lastChoiceText?.toLowerCase().includes("tűz") || lastChoiceText?.toLowerCase().includes("harc");
-
-    if (isFight) {
-      return {
-        text: "Összegyűjtöd belső erődet, és a tenyeredből egy lángoló gömböt zúdítasz a szörnyre! A farkas vonyítva hőkölsz hátra, bundája füstölögni kezd. Rémülten elmenekül a sötétbe. Győztél, és érzed, ahogy a mágia ereje átjárja a tested.",
-        choices: [
-          { id: "5a", text: "Büszkén folytatom az utam." },
-          { id: "5b", text: "Megpihenek regenerálódni." },
-        ],
-        imagePrompt: "fire",
-        hpChange: -10,
-        manaChange: -30
-      };
-    } else {
-      return {
-        text: "Gyorsan felkapsz egy alacsony ágra, épp mielőtt az állkapcsok csattannának a bokádon. A farkas megpróbál utánad ugrani, de elvéti. Egy ideig még köröz a fa alatt, majd morogva eloldalog. Megmenekültél.",
-        choices: [
-          { id: "5a", text: "Lemászok és osonva tovább indulok." },
-          { id: "5b", text: "Fent maradok biztonságban." },
-        ],
-        imagePrompt: "hiding",
-        hpChange: 0,
-        manaChange: -5
-      };
-    }
-  }
-
-  // 6. KÖR: VÁROS (10) - Kastély sziluett
-  if (historyLength === 10) {
-    return {
-      text: "Végül kiérsz az erdőből. A napfelkelte fényeiben, egy dombtetőről megpillantod a királyság fővárosát. Hatalmas, fehér falak, égbe nyúló tornyok és a távolban egy fenséges, lebegő kristályokkal díszített kastély. Ez lesz az új otthonod.",
-      choices: [
-        { id: "6a", text: "Belépek a városkapun." },
-        { id: "6b", text: "A piactér felé veszem az irányt." },
-      ],
-      imagePrompt: "city",
-      hpChange: 10,
-      manaChange: 10
-    };
-  }
-
-  // 7. KÖR: VÉGE (12) - Kocsma fények
-  if (historyLength === 12) {
-    return {
-      text: "A város forgataga magával ragad. Betérsz az 'Arany Griff' fogadóba, ahol vidám lantmuzsika szól. Leülsz egy sarokasztalhoz, rendelsz egy italt, és elmosolyodsz. A kalandod még csak most kezdődik el igazán ebben az új világban.\n\n(Vége a bevezető fejezetnek.)",
-      choices: [
-        { id: "restart", text: "Újraélem a kalandot (Restart)" },
-      ],
-      imagePrompt: "tavern",
-      hpChange: 20,
-      manaChange: 20,
-      gameOver: true
-    };
-  }
-
-  // Fallback
+// --- STATIC INTRO (For instant start) ---
+const getIntroNode = (): StoryNode => {
   return {
-    text: "A sors fonalai összekuszálódtak.",
-    choices: [{ id: "restart", text: "Újrakezdés" }],
-    imagePrompt: "intro",
-    gameOver: true
+    text: "A fékcsikorgás emléke lassan elhalványul. Nem érzel fájdalmat, csak végtelen csendet. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy örvénylő, sötét csillagködöt. Egyedül vagy a semmiben. A tested súlytalan, mintha vízben lebegnél.",
+    choices: [
+      { id: "1a", text: "Kiáltok a sötétségbe!" },
+      { id: "1b", text: "Csendben várok és figyelek." },
+    ],
+    imagePrompt: "cosmic void, colorful nebula in deep space, swirling stardust",
+    hpChange: 0,
+    manaChange: 0
   };
 };
 
-// --- IMAGE GENERATION ---
+// --- DYNAMIC AI ENGINE ---
 
-// Mapping simple keys to complex AI prompts
-const PROMPT_MAP: Record<string, string> = {
-  intro: "cosmic void, colorful nebula in deep space, swirling stardust, cinematic lighting, 8k resolution, mysterious atmosphere",
-  goddess: "ethereal glowing goddess silhouette made of starlight, divine light beams in darkness, mystical fantasy art, no face, cinematic composition",
-  forest: "dark ancient forest with purple glowing bioluminescent plants, foggy atmosphere, mystical trees, fantasy landscape, 8k",
-  wolf: "gigantic black wolf with glowing red eyes in a dark forest, menacing beast, fantasy monster art, detailed fur, cinematic lighting",
-  fire: "magical fireball spell in hand, first person view, glowing orange flames, dark background, rpg fantasy art, detailed particles",
-  hiding: "looking up at dark giant trees in a forest, hiding in shadows, mysterious atmosphere, night time, fantasy concept art",
-  city: "majestic white fantasy castle on a hill, floating crystals, sunrise lighting, epic fantasy architecture, wide shot, matte painting",
-  tavern: "cozy medieval tavern interior, candle light, wooden tables, fantasy rpg atmosphere, warm lighting, detailed background"
+const storySchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    text: { type: Type.STRING, description: "The narrative segment describing what happens next. Atmospheric, dark fantasy style. 2-3 sentences." },
+    choices: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          text: { type: Type.STRING, description: "The text of the choice." }
+        },
+        required: ["id", "text"]
+      },
+      description: "Exactly 2 distinct choices for the player."
+    },
+    imagePrompt: { type: Type.STRING, description: "A concise, comma-separated visual description of the current scene for an image generator (e.g. 'dark swamp, glowing mushrooms, fog')." },
+    hpChange: { type: Type.INTEGER, description: "Change in HP based on the result. Negative for damage, positive for healing. Range -20 to +10." },
+    manaChange: { type: Type.INTEGER, description: "Change in Mana. Negative for using magic, positive for rest/potions." },
+    gameOver: { type: Type.BOOLEAN, description: "True ONLY if HP drops to 0 or the player chose a definitively fatal action." }
+  },
+  required: ["text", "choices", "imagePrompt", "hpChange", "manaChange", "gameOver"]
 };
 
 export const generateStorySegment = async (
   history: { role: 'user' | 'model'; parts: { text: string }[] }[],
-  userChoice: string | null
+  userChoice: string | null,
+  currentStats?: GameStats
 ): Promise<StoryNode> => {
-  await new Promise(resolve => setTimeout(resolve, 600));
-  return getStaticStoryNode(history.length, userChoice);
+  
+  // 1. Return Static Intro if it's the very first turn
+  if (history.length === 0) {
+    return getIntroNode();
+  }
+
+  // 2. Generate Dynamic Continuation
+  try {
+    const systemInstruction = `
+      You are the Dungeon Master of a 'Beautiful New World', a Dark Fantasy Isekai text adventure.
+      
+      Current Player Stats: HP: ${currentStats?.hp ?? 100}, Mana: ${currentStats?.mana ?? 50}.
+      
+      Rules:
+      1. Tone: Dark, mysterious, mature, atmospheric. Similar to Dark Souls or Elden Ring lore.
+      2. Continuity: Continue the story logically from the last user choice.
+      3. Variety: Introduce new environments (ruins, cursed forests, floating cities, caves), weird creatures, and magic. Do not stay in one place too long.
+      4. Consequences: If the player does something risky, deduct HP. If they use magic, deduct Mana.
+      5. Length: Keep the narrative description engaging but concise (approx 300-400 characters).
+      6. Infinite: Do NOT end the story unless the player dies (HP hits 0). Keep generating new challenges.
+      7. Language: HUNGARIAN (Magyar).
+    `;
+
+    // Construct the prompt
+    // We pass the conversation history to the model so it remembers context
+    // Ideally, we would compress history if it gets too long, but for this demo, we pass it all.
+    const contents = [
+      ...history,
+      { role: 'user', parts: [{ text: `Player Choice: ${userChoice}. Generate the next scene.` }] }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: storySchema,
+        temperature: 0.8, // High creativity for variety
+      },
+      contents: contents as any, 
+    });
+
+    const jsonText = response.text;
+    if (!jsonText) throw new Error("No response from AI");
+
+    const generatedNode = JSON.parse(jsonText) as StoryNode;
+    
+    // Fallback if AI forgets to give IDs
+    generatedNode.choices = generatedNode.choices.map((c, i) => ({
+      ...c,
+      id: c.id || `choice_${Date.now()}_${i}`
+    }));
+
+    return generatedNode;
+
+  } catch (error) {
+    console.error("AI Generation failed:", error);
+    // Emergency Fallback
+    return {
+      text: "A mágia köde elhomályosítja a látásodat. Egy pillanatra megszédülsz, de aztán kitisztul a kép. (Hiba történt a kapcsolatban, de a kaland folytatódik...)",
+      choices: [
+        { id: "fallback_1", text: "Továbbmegyek az úton." },
+        { id: "fallback_2", text: "Megpihenek egy pillanatra." }
+      ],
+      imagePrompt: "mysterious fog, glitch art, dark fantasy",
+      hpChange: 0,
+      manaChange: 0
+    };
+  }
 };
 
-export const generateSceneImage = async (promptKey: string): Promise<string> => {
-  // Use Pollinations.ai for reliable, style-enforced generation
-  const basePrompt = PROMPT_MAP[promptKey] || PROMPT_MAP.intro;
-  // Append style enforcers to ensure consistency and avoid photorealism of modern people
-  const finalPrompt = encodeURIComponent(`${basePrompt}, dark fantasy art style, digital painting, artstation, cinematic, masterpiece`);
-  // Add random seed to prevent caching issues if needed, though for consistency we might want it stable. 
-  // Let's keep it stable per scene type for now to save bandwidth/generation time, or random for variety?
-  // Let's add a small random seed to ensure it regenerates if reload happens
-  const seed = Math.floor(Math.random() * 1000);
+// --- IMAGE GENERATION ---
+
+export const generateSceneImage = async (prompt: string): Promise<string> => {
+  // We use the exact prompt from the AI, adding style modifiers
+  const style = "dark fantasy art style, digital painting, artstation, cinematic, masterpiece, highly detailed, dramatic lighting";
+  const finalPrompt = encodeURIComponent(`${prompt}, ${style}`);
   
+  // Random seed for variation even with similar prompts
+  const seed = Math.floor(Math.random() * 10000);
+  
+  // Using Pollinations.ai
   return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
 };

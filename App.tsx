@@ -7,13 +7,13 @@ import SceneVisual from './components/SceneVisual';
 
 // Icons
 const HeartIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-600 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" viewBox="0 0 20 20" fill="currentColor">
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,1)]" viewBox="0 0 20 20" fill="currentColor">
     <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
   </svg>
 );
 
 const StarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]" viewBox="0 0 20 20" fill="currentColor">
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,1)]" viewBox="0 0 20 20" fill="currentColor">
     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
   </svg>
 );
@@ -31,6 +31,7 @@ const App: React.FC = () => {
   });
 
   // Track the scene type ('intro', 'forest') for the CSS visual placeholder
+  // We'll map the complex AI prompts roughly to these keys for the placeholder visual
   const [currentSceneType, setCurrentSceneType] = useState<string>('intro');
   const [imageLoaded, setImageLoaded] = useState(false);
   
@@ -42,7 +43,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const initGame = async () => {
       try {
-        const response = await generateStorySegment([], null);
+        const response = await generateStorySegment([], null, INITIAL_STATS);
         await updateGameState(response);
       } catch (e) {
         console.error(e);
@@ -61,17 +62,33 @@ const App: React.FC = () => {
     }
   }, [gameState.currentText, gameState.currentChoices]);
 
+  // Helper to map complex prompts to simple CSS visual keys
+  const getVisualKeyFromPrompt = (prompt: string): string => {
+    const p = prompt.toLowerCase();
+    if (p.includes('space') || p.includes('void') || p.includes('nebula')) return 'intro';
+    if (p.includes('forest') || p.includes('tree') || p.includes('woods')) return 'forest';
+    if (p.includes('fire') || p.includes('flame') || p.includes('burn')) return 'fire';
+    if (p.includes('city') || p.includes('castle') || p.includes('town')) return 'city';
+    if (p.includes('wolf') || p.includes('beast') || p.includes('monster')) return 'wolf';
+    if (p.includes('tavern') || p.includes('inn') || p.includes('bar')) return 'tavern';
+    if (p.includes('god') || p.includes('divine') || p.includes('light')) return 'goddess';
+    return 'hiding'; // Default fallback
+  };
+
   const updateGameState = async (node: StoryNode) => {
     const newHp = Math.min(gameState.stats.maxHp, Math.max(0, gameState.stats.hp + (node.hpChange || 0)));
     const newMana = Math.min(gameState.stats.maxMana, Math.max(0, gameState.stats.mana + (node.manaChange || 0)));
     const isDead = newHp <= 0 || node.gameOver;
 
     // Start loading the new AI image
-    // Note: We update the scene type immediately for the CSS visual
     let newImageUrl = gameState.currentImage;
     if (node.imagePrompt) {
-        setCurrentSceneType(node.imagePrompt);
+        // Extract a simple key for the placeholder
+        const visualKey = getVisualKeyFromPrompt(node.imagePrompt);
+        setCurrentSceneType(visualKey);
+        
         setImageLoaded(false); // Reset load state for new image
+        // Generate the real high-quality image
         newImageUrl = await generateSceneImage(node.imagePrompt);
     }
 
@@ -83,7 +100,7 @@ const App: React.FC = () => {
         ...prev,
         stats: { ...prev.stats, hp: newHp, mana: newMana },
         currentText: node.text,
-        currentChoices: isDead ? [{id: 'restart', text: "Új Élet Kezdése (Restart)"}] : node.choices,
+        currentChoices: isDead ? [{id: 'restart', text: "A lelked visszatér a körforgásba (Új Játék)"}] : node.choices,
         isGameOver: isDead || false,
         currentImage: newImageUrl,
         isLoading: false,
@@ -112,7 +129,8 @@ const App: React.FC = () => {
     ];
 
     try {
-      const response = await generateStorySegment(updatedHistory, choice.text);
+      // Pass the CURRENT stats so the AI knows if we are dying or strong
+      const response = await generateStorySegment(updatedHistory, choice.text, gameState.stats);
       await updateGameState(response);
     } catch (e) {
       console.error(e);
@@ -126,7 +144,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen font-serif text-gray-300 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
+    <div className="min-h-screen font-serif text-gray-100 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -147,11 +165,11 @@ const App: React.FC = () => {
                 </h1>
             </div>
             <div className="flex items-center justify-center gap-4 mt-4 opacity-80">
-                <svg className="w-8 h-8 text-amber-700/60 rotate-180" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
+                <svg className="w-8 h-8 text-amber-600 rotate-180" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
                 <div className="flex flex-col items-center">
-                    <p className="text-amber-500/90 text-xs md:text-sm tracking-[0.5em] uppercase font-bold">Isekai Chronicles</p>
+                    <p className="text-amber-500 text-xs md:text-sm tracking-[0.5em] uppercase font-bold drop-shadow-md">Isekai Chronicles</p>
                 </div>
-                <svg className="w-8 h-8 text-amber-700/60" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
+                <svg className="w-8 h-8 text-amber-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
             </div>
             <div className="w-full max-w-lg h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent mt-4"></div>
         </header>
@@ -210,14 +228,14 @@ const App: React.FC = () => {
 
             {/* Right Column: Text & Choices */}
             <div className="w-full md:w-7/12 flex flex-col">
-                 <div className="flex-1 bg-[#0a0a0a] border-y md:border border-amber-900/20 md:rounded p-6 md:p-8 relative shadow-2xl flex flex-col">
+                 <div className="flex-1 bg-[#0a0a0a] border-y md:border border-amber-900/30 md:rounded p-6 md:p-8 relative shadow-2xl flex flex-col">
                     <div className={`
-                        flex-1 font-sans text-lg md:text-xl leading-8 text-gray-300 tracking-wide text-justify mb-8
+                        flex-1 font-sans text-lg md:text-xl leading-8 text-amber-50 font-medium tracking-wide text-justify mb-8 drop-shadow-md
                         transition-all duration-700 ease-out
                         ${isSceneVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
                     `}>
                         {gameState.error ? (
-                            <div className="text-red-800 bg-red-950/20 p-4 border border-red-900/50 rounded">{gameState.error}</div>
+                            <div className="text-red-400 bg-red-950/40 p-4 border border-red-800 rounded font-bold">{gameState.error}</div>
                         ) : (
                             <TypewriterText 
                                 text={gameState.currentText} 
@@ -233,11 +251,11 @@ const App: React.FC = () => {
                         transition-all duration-500 delay-100
                         ${isSceneVisible ? 'opacity-100' : 'opacity-0'}
                     `}>
-                        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-900/30 to-transparent mb-4"></div>
+                        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-900/40 to-transparent mb-4"></div>
                         
                         {gameState.isLoading ? (
                             <div className="text-center py-6">
-                                <span className="text-amber-800/40 animate-pulse text-sm tracking-[0.3em]">A SORS DÖNT...</span>
+                                <span className="text-amber-500 animate-pulse text-sm tracking-[0.3em] font-bold">A SORS DÖNT...</span>
                             </div>
                         ) : (
                             gameState.currentChoices.map((choice, idx) => (
@@ -251,12 +269,12 @@ const App: React.FC = () => {
                                         ${!textComplete ? 'opacity-40 cursor-not-allowed grayscale' : 'opacity-100 hover:-translate-y-0.5'}
                                     `}
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-900/40 via-amber-600/40 to-amber-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    <div className="relative bg-[#111] hover:bg-[#161616] p-4 flex items-center justify-between rounded transition-colors border border-amber-900/20 group-hover:border-transparent">
-                                        <span className="font-serif text-gray-400 group-hover:text-amber-100 text-lg transition-colors">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-800 via-amber-600 to-amber-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    <div className="relative bg-[#111] hover:bg-[#1a1a1a] p-4 flex items-center justify-between rounded transition-colors border border-amber-800/40 group-hover:border-transparent">
+                                        <span className="font-serif text-gray-200 group-hover:text-white text-lg font-bold transition-colors tracking-wide">
                                             {choice.text}
                                         </span>
-                                        <span className="text-amber-800 group-hover:text-amber-500 transition-colors opacity-50 group-hover:opacity-100">
+                                        <span className="text-amber-600 group-hover:text-amber-300 transition-colors opacity-75 group-hover:opacity-100">
                                             ✦
                                         </span>
                                     </div>
