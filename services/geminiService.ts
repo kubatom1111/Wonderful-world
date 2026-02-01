@@ -1,4 +1,112 @@
-import { StoryNode } from "../types";
+import { StoryNode, Item, StatusEffect } from "../types";
+
+// --- ITEM DATABASE ---
+export const ITEM_REGISTRY: Record<string, Item> = {
+  'rusty_dagger': {
+    id: 'rusty_dagger',
+    name: 'Rozsdás Tőr',
+    type: 'weapon',
+    description: 'Régi, de éles. Jobb, mint a puszta kéz.',
+    icon: '🗡️'
+  },
+  'hunting_bow': {
+    id: 'hunting_bow',
+    name: 'Vadászíj',
+    type: 'weapon',
+    description: 'Rugalmas tiszafa, ideális csendes vadászathoz.',
+    icon: '🏹'
+  },
+  'magic_wand': {
+    id: 'magic_wand',
+    name: 'Tanonc Pálca',
+    type: 'weapon',
+    description: 'Recsegő fából készült, de van benne mana.',
+    icon: '🪄'
+  },
+  'health_potion': {
+    id: 'health_potion',
+    name: 'Gyógyfőzet',
+    type: 'consumable',
+    description: 'Pirosas folyadék, kámfor illatú.',
+    icon: '🍷'
+  },
+  'ancient_shield': {
+    id: 'ancient_shield',
+    name: 'Lovagi Pajzs',
+    type: 'armor',
+    description: 'A birodalom címerét viseli, bár kopott.',
+    icon: '🛡️'
+  },
+  'shadow_cloak': {
+    id: 'shadow_cloak',
+    name: 'Árnyköpeny',
+    type: 'armor',
+    description: 'Segít beleolvadni a környezetedbe.',
+    icon: '🧥'
+  },
+  'dragon_scale': {
+    id: 'dragon_scale',
+    name: 'Sárkánypikkely',
+    type: 'key',
+    description: 'Izzik a melegségtől. Hatalmas varázserő.',
+    icon: '🐲'
+  },
+  'map': {
+    id: 'map',
+    name: 'Titkos Térkép',
+    type: 'key',
+    description: 'Az Alváros járatait mutatja.',
+    icon: '🗺️'
+  }
+};
+
+export const getItem = (id: string): Item | undefined => ITEM_REGISTRY[id];
+
+// --- STATUS EFFECT DATABASE ---
+export const EFFECT_REGISTRY: Record<string, StatusEffect> = {
+  'bleeding': {
+    id: 'bleeding',
+    name: 'Vérzés',
+    type: 'debuff',
+    description: 'A nyílt seb folyamatosan gyengít.',
+    icon: '🩸',
+    duration: 3,
+    hpPerTurn: -8
+  },
+  'regeneration': {
+    id: 'regeneration',
+    name: 'Regeneráció',
+    type: 'buff',
+    description: 'A szent víz gyógyítja a sebeidet.',
+    icon: '🌿',
+    duration: 4,
+    hpPerTurn: 10
+  },
+  'curse': {
+    id: 'curse',
+    name: 'Átok',
+    type: 'debuff',
+    description: 'A sötét mágia elszívja az erődet.',
+    icon: '☠️',
+    duration: 5,
+    manaPerTurn: -10
+  },
+  'clarity': {
+    id: 'clarity',
+    name: 'Tisztánlátás',
+    type: 'buff',
+    description: 'Az elme éles, a mana gyorsan visszatér.',
+    icon: '✨',
+    duration: 5,
+    manaPerTurn: 10
+  }
+};
+
+export const getEffect = (id: string): StatusEffect | undefined => {
+    const effect = EFFECT_REGISTRY[id];
+    return effect ? { ...effect } : undefined; // Return copy to avoid mutating base registry
+};
+
 
 // --- OFFLINE STORY ENGINE ---
 
@@ -17,19 +125,20 @@ const STORY_TREE: Record<string, StoryNode> = {
   
   // Ág A: Erdő (Agresszív kezdés)
   forest_start: {
-    text: "A kiáltásod visszhangzik a semmiben, majd hirtelen zuhanni kezdesz. Puffanva érsz földet egy sűrű, ködös erdő aljnövényzetében. A fák feketék és göcsörtösek, az égboltot pedig nem látni a sűrű lombkoronától. Valami mozog a bokrok között.",
+    text: "A kiáltásod visszhangzik a semmiben, majd hirtelen zuhanni kezdesz. Puffanva érsz földet egy sűrű, ködös erdő aljnövényzetében. A fák feketék és göcsörtösek. A lábad előtt megcsillan valami a sárban: egy elhagyott tőr.",
     choices: [
-      { id: "wolf_encounter", text: "Fegyvert keresek és felkészülök." },
-      { id: "climb_tree", text: "Felmászom egy fára biztonságba." }
+      { id: "wolf_encounter", text: "Felveszem és körülnézek." },
+      { id: "climb_tree", text: "Hagyom a fegyvert, felmászom egy fára." }
     ],
     imagePrompt: "forest",
     hpChange: -5,
-    manaChange: 0
+    manaChange: 0,
+    loot: ['rusty_dagger'] 
   },
   wolf_encounter: {
-    text: "Egy hatalmas, árnyékból szőtt farkas lép elő a ködből. A szemei vörösen izzanak. Nem támad azonnal, csak morog, mintha tesztelné a bátorságodat. A kezed ügyébe akad egy éles kő.",
+    text: "Egy hatalmas, árnyékból szőtt farkas lép elő a ködből. A szemei vörösen izzanak. Nem támad azonnal, csak morog, mintha tesztelné a bátorságodat.",
     choices: [
-      { id: "wolf_fight", text: "Rátámadok a kővel!" },
+      { id: "wolf_fight", text: "Rátámadok a fegyverrel!" },
       { id: "wolf_tame", text: "Próbálom megszelídíteni mágiával." }
     ],
     imagePrompt: "wolf",
@@ -37,24 +146,26 @@ const STORY_TREE: Record<string, StoryNode> = {
     manaChange: 0
   },
   climb_tree: {
-    text: "Felhúzod magad az egyik göcsörtös ágra. A magasból látod, hogy egy farkas szaglássza végig a helyet, ahol az imént voltál, majd elüget. A távolban egy romos torony körvonalai rajzolódnak ki.",
+    text: "Felhúzod magad az egyik göcsörtös ágra. A magasból látod, hogy egy farkas szaglássza végig a helyet. A lombok között, egy elhagyott vadászles maradványain találsz egy íjat.",
     choices: [
       { id: "tower_approach", text: "Elindulok a torony felé." },
       { id: "forest_sleep", text: "Megpihenek az ágon reggelig." }
     ],
     imagePrompt: "forest",
     hpChange: 0,
-    manaChange: 5
+    manaChange: 5,
+    loot: ['hunting_bow']
   },
   wolf_fight: {
-    text: "A farkas gyorsabb nálad. A karmaiba szaladsz, de sikerül megütnöd a fejét a kővel. Az árnyékfenevad üvöltve szertefoszlik fekete füstté, de a karod csúnyán vérzik.",
+    text: "A farkas gyorsabb nálad. A karmaiba szaladsz, de sikerül megütnöd a fejét. Az árnyékfenevad üvöltve szertefoszlik fekete füstté, de a karod csúnyán vérzik. Érzed, hogy a seb nem akar begyógyulni.",
     choices: [
       { id: "tower_approach", text: "Tovább bicegek a torony felé." },
       { id: "healing_magic", text: "Megpróbálom begyógyítani a sebem." }
     ],
     imagePrompt: "fire",
-    hpChange: -20,
-    manaChange: 0
+    hpChange: -10,
+    manaChange: 0,
+    addEffects: ['bleeding'] // Adds bleed effect
   },
   wolf_tame: {
     text: "Kinyújtod a kezed és a belső energiádra koncentrálsz. A farkas megérzi a benned rejlő erőt. Lehajtja a fejét, és hagyja, hogy megérintsd. Egy pillanatra eggyé váltok, majd a farkas eltűnik, de érzed, hogy az ereje egy része beléd szállt.",
@@ -64,7 +175,8 @@ const STORY_TREE: Record<string, StoryNode> = {
     ],
     imagePrompt: "wolf",
     hpChange: 5,
-    manaChange: -10
+    manaChange: -10,
+    addEffects: ['clarity'] // Buff
   },
 
   // ÚJ ÁG: Barlangrendszer (Az erdőből nyílik)
@@ -99,49 +211,52 @@ const STORY_TREE: Record<string, StoryNode> = {
     manaChange: 50
   },
   drink_cave_water: {
-    text: "A víz íze fémes és édes. Ahogy lenyeled, látomásod támad: látod a Lebegő Várost lángokban állni. Amikor feleszmélsz, erősebbnek érzed magad.",
+    text: "A víz íze fémes és édes. Ahogy lenyeled, látomásod támad: látod a Lebegő Várost lángokban állni. Amikor feleszmélsz, erősebbnek érzed magad. A tested bizsereg.",
     choices: [
       { id: "ruins_exit", text: "A felszínre sietek." },
       { id: "cave_entrance", text: "Visszafordulok az erdőbe." }
     ],
     imagePrompt: "goddess",
     hpChange: 15,
-    manaChange: 15
+    manaChange: 15,
+    addEffects: ['regeneration'] // Buff
   },
 
   // Ág B: Romok (Passzív kezdés)
   ruins_start: {
-    text: "A csendet lassan morajlás váltja fel. Finoman, mint egy tollpihe, ereszkedsz le egy hideg márványpadlóra. Egy ősi, elhagyatott templom romjai között vagy. A levegőben régi tömjén illata száll.",
+    text: "A csendet lassan morajlás váltja fel. Finoman, mint egy tollpihe, ereszkedsz le egy hideg márványpadlóra. Egy ősi, elhagyatott templom romjai között vagy. Az oltáron egy poros varázskönyv és egy pálca hever.",
     choices: [
-      { id: "altar_search", text: "Megvizsgálom az oltárt." },
+      { id: "altar_search", text: "Elveszem a pálcát és a könyvet." },
       { id: "ruins_exit", text: "Kimegyek a szabadba." }
     ],
     imagePrompt: "ruins",
     hpChange: 0,
-    manaChange: 5
+    manaChange: 5,
+    loot: ['magic_wand']
   },
   altar_search: {
-    text: "Az oltáron egy poros, de sértetlen kristályüveg hever, benne vöröslő folyadékkal. Mellette egy régi, bőrkötésű könyv, aminek a betűit nem ismered, de furcsa módon mégis érted.",
+    text: "A pálca bizsergetni kezdi a tenyered. A könyv ősi varázslatokat tartalmaz. Ahogy beleolvasol, a szavak a fejedbe égnek.",
     choices: [
-      { id: "drink_potion", text: "Megiszom a folyadékot." },
-      { id: "read_book", text: "Beleolvasok a könyvbe." }
+      { id: "drink_potion", text: "Keresek még valamit." },
+      { id: "read_book", text: "Elmélyedek a tanulásban." }
     ],
     imagePrompt: "tavern", 
     hpChange: 0,
     manaChange: 0
   },
   drink_potion: {
-    text: "A folyadék édes és égető. Érzed, ahogy az életenergia szétárad az ereidben. A sebeid (ha voltak) begyógyulnak, és az izmaid megtelnek erővel.",
+    text: "Találsz egy elrejtett rekeszt, benne egy ősi pajzzsal és egy üvegcsével. A folyadék édes és égető.",
     choices: [
       { id: "ruins_exit", text: "Most már készen állok kimenni." },
       { id: "meditate", text: "Meditálok az új erővel." }
     ],
     imagePrompt: "goddess",
     hpChange: 20,
-    manaChange: 0
+    manaChange: 0,
+    loot: ['ancient_shield', 'health_potion']
   },
   read_book: {
-    text: "A könyv ősi varázslatokat tartalmaz. Ahogy olvasod, a szavak a fejedbe égnek. Megtanultál egy tűzlabda varázslatot, de a szellemi erőfeszítés kimerített.",
+    text: "A könyv ősi varázslatokat tartalmaz. Megtanultál egy tűzlabda varázslatot, de a szellemi erőfeszítés kimerített.",
     choices: [
       { id: "ruins_exit", text: "Kipróbálom az erőt odakint." },
       { id: "rest_ruins", text: "Pihenek egyet a kövön." }
@@ -203,14 +318,15 @@ const STORY_TREE: Record<string, StoryNode> = {
       manaChange: 0
   },
   shadow_fight: {
-      text: "A lény testetlen csápokkal támad. A mágiád alig sebzi, de sikerül felborítanod egy könyvespolcot, ami maga alá temeti. Zihálva kutatsz át a maradványait.",
+      text: "A lény testetlen csápokkal támad. A mágiád alig sebzi, de sikerül felborítanod egy könyvespolcot, ami maga alá temeti. Zihálva kutatsz át a maradványait. A harc során furcsa átok szállt rád.",
       choices: [
           { id: "city_journey", text: "Kimenekülök az ablakon át." },
           { id: "read_book", text: "Gyorsan elolvasok egy könyvet." }
       ],
       imagePrompt: "fire",
       hpChange: -25,
-      manaChange: -10
+      manaChange: -10,
+      addEffects: ['curse']
   },
   shadow_riddle: {
       text: "'Mi az, ami reggel négy lábon jár, délben kettőn, este háromon?' - kérdezi a lény gépies hangon. Ez túl egyszerű.",
@@ -230,17 +346,19 @@ const STORY_TREE: Record<string, StoryNode> = {
       ],
       imagePrompt: "city",
       hpChange: 0,
-      manaChange: 20
+      manaChange: 20,
+      loot: ['map']
   },
   tower_dungeon: {
-      text: "A pince nyirkos és sötét. Ketrecek sorakoznak a falak mentén. Az egyikből halk nyüszítés hallatszik.",
+      text: "A pince nyirkos és sötét. Ketrecek sorakoznak a falak mentén. A levegőben sűrű, fojtogató mágia terjeng.",
       choices: [
           { id: "open_cage", text: "Kinyitom a ketrecet." },
           { id: "ignore_cage", text: "Továbbmegyek." }
       ],
       imagePrompt: "cave",
       hpChange: 0,
-      manaChange: 0
+      manaChange: 0,
+      addEffects: ['curse']
   },
 
   // Konvergencia és Bővítés 2: LEBEGŐ VÁROS ÉS BŐVÍTÉS
@@ -314,14 +432,15 @@ const STORY_TREE: Record<string, StoryNode> = {
      gameOver: true
   },
   rooftop_run: {
-      text: "Felmászol egy stand tetejére, onnan egy erkélyre. A tetőkön ugrálsz, alattad a szédítő mélység. Egy kereskedő léghajó halad el alattad, de egy nyitott csatornafedél is hívogat egy sötét sikátorban.",
+      text: "Felmászol egy stand tetejére, onnan egy erkélyre. Menekülés közben felkapsz egy kötélen száradó sötét köpenyt. A tetőkön ugrálsz, alattad a szédítő mélység. Egy kereskedő léghajó halad el alattad.",
       choices: [
           { id: "jump_airship", text: "Ugrás a léghajóra!" },
           { id: "sewer_dive", text: "Le a csatornába!" }
       ],
       imagePrompt: "city",
       hpChange: -5,
-      manaChange: 0
+      manaChange: 0,
+      loot: ['shadow_cloak']
   },
   
   // Alváros Ág
@@ -355,7 +474,8 @@ const STORY_TREE: Record<string, StoryNode> = {
       text: "A tojás forró a kezedben. Kirohansz vele a csatornából egyenesen a pusztaságba. A tojás megreped, és egy kissárkány bújik ki. Mostantól te vagy a Sárkányok Anyja/Apja. GYŐZELEM.",
       choices: [{id: 'intro', text: "Új játék"}],
       imagePrompt: "wolf", // Creature vibe
-      gameOver: true
+      gameOver: true,
+      loot: ['dragon_scale']
   },
   cultist_gathering: {
       text: "Egy sötét istent idéznek. Észrevesznek. 'Tökéletes áldozat!' - kiáltják. Nincs menekvés. (GAME OVER)",
@@ -439,7 +559,8 @@ const STORY_TREE: Record<string, StoryNode> = {
       text: "Sikerül! De a sárkány egyik szeme kinyílik. Futás! Leugrasz a hegyről, és a zuhanás közben rájössz, hogy a pikkely varázsereje szárnyakat ad. Szabad vagy! GYŐZELEM.",
       choices: [{id: 'intro', text: "Új játék"}],
       imagePrompt: "void",
-      gameOver: true
+      gameOver: true,
+      loot: ['dragon_scale']
   },
   worship_dragon: {
       text: "A sárkányt nem hatja meg az imádásod. Egyetlen lángcsóvával hamuvá tesz. (GAME OVER)",
@@ -594,6 +715,6 @@ export const generateSceneImage = async (prompt: string): Promise<string> => {
   // Pick a random image from the collection
   const imageId = collection[Math.floor(Math.random() * collection.length)];
   
-  // Return optimized Unsplash URL
-  return `https://images.unsplash.com/${imageId}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=70`;
+  // Return optimized Unsplash URL with w=600 and q=60 for mobile performance
+  return `https://images.unsplash.com/${imageId}?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=60`;
 };

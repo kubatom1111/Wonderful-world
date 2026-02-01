@@ -10,25 +10,31 @@ const SceneVisual: React.FC<SceneVisualProps> = ({ scene }) => {
     switch (scene) {
       case 'intro':
         return (
-          <div className="absolute inset-0 bg-black overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a103c_0%,#000000_100%)] opacity-80"></div>
+          <div className="absolute inset-0 bg-[#0a0510] overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#2a1b54_0%,#000000_100%)] opacity-90"></div>
+            {/* Nebula Clouds */}
+            <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-600/20 blur-[80px] rounded-full mix-blend-screen animate-pulse-slow"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full mix-blend-screen animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+            
             {/* Stars */}
-            {[...Array(20)].map((_, i) => (
+            {[...Array(25)].map((_, i) => (
               <div 
                 key={i}
-                className="absolute bg-white rounded-full animate-pulse-slow"
+                className="absolute bg-white rounded-full animate-pulse"
                 style={{
-                  width: Math.random() * 2 + 1 + 'px',
-                  height: Math.random() * 2 + 1 + 'px',
+                  width: Math.random() * 3 + 1 + 'px',
+                  height: Math.random() * 3 + 1 + 'px',
                   top: Math.random() * 100 + '%',
                   left: Math.random() * 100 + '%',
-                  opacity: Math.random() * 0.7 + 0.3,
-                  animationDelay: Math.random() * 5 + 's'
+                  opacity: Math.random() * 0.8 + 0.4,
+                  animationDuration: Math.random() * 3 + 2 + 's',
+                  animationDelay: Math.random() * 5 + 's',
+                  boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)'
                 }}
               ></div>
             ))}
              <div className="absolute inset-0 flex items-center justify-center">
-                 <div className="w-64 h-64 bg-purple-900/20 blur-[80px] rounded-full animate-pulse"></div>
+                 <div className="w-32 h-32 border border-purple-500/20 rounded-full animate-ping" style={{ animationDuration: '3s' }}></div>
              </div>
           </div>
         );

@@ -1,142 +1,154 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { INITIAL_STATS, GameState, StoryNode, Choice } from './types';
-import { getStoryNode, generateSceneImage } from './services/geminiService';
-import TypewriterText from './components/TypewriterText';
-import StatBar from './components/StatBar';
-import SceneVisual from './components/SceneVisual';
-
-// Icons
-const HeartIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,1)]" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-  </svg>
-);
-
-const StarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-sky-400 drop-shadow-[0_0_8px_rgba(56,189,248,1)]" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-  </svg>
-);
+import React, { useState, useEffect } from 'react';
+import { INITIAL_STATS, StoryNode, Choice, GameStats, Item, StatusEffect } from './types';
+import { getStoryNode, getItem, getEffect } from './services/geminiService';
+import GameScene from './components/GameScene';
 
 const App: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>({
-    currentTurn: 0,
-    history: [],
-    stats: { ...INITIAL_STATS },
-    isLoading: true,
-    currentText: "",
-    currentChoices: [],
-    isGameOver: false,
-    currentImage: undefined // Holds the URL
-  });
-
-  const [currentSceneType, setCurrentSceneType] = useState<string>('intro');
-  const [imageLoaded, setImageLoaded] = useState(false);
-  
-  const [textComplete, setTextComplete] = useState(false);
-  const [isSceneVisible, setIsSceneVisible] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // Logical Game State (Source of Truth)
+  const [currentNode, setCurrentNode] = useState<StoryNode | null>(null);
+  const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
+  const [inventory, setInventory] = useState<Item[]>([]);
+  const [activeEffects, setActiveEffects] = useState<StatusEffect[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>(undefined);
 
   // Initialize game on mount
   useEffect(() => {
     const initGame = async () => {
       try {
         const response = getStoryNode('intro');
-        await updateGameState(response);
+        setCurrentNode(response);
       } catch (e) {
         console.error("Game Initialization Failed:", e);
-        setGameState(prev => ({ 
-            ...prev, 
-            isLoading: false, 
-            error: "Hiba történt a történet betöltése közben." 
-        }));
-        setIsSceneVisible(true);
+        setError("Hiba történt a történet betöltése közben.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     initGame();
   }, []);
 
-  // Scroll logic
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [gameState.currentText, gameState.currentChoices]);
-
-  // Helper to map complex prompts to simple CSS visual keys
-  const getVisualKeyFromPrompt = (prompt: string): string => {
-    if (!prompt) return 'hiding';
-    const p = prompt.toLowerCase();
-    if (p.includes('space') || p.includes('void') || p.includes('nebula')) return 'intro';
-    if (p.includes('forest') || p.includes('tree') || p.includes('woods')) return 'forest';
-    if (p.includes('fire') || p.includes('flame') || p.includes('burn')) return 'fire';
-    if (p.includes('city') || p.includes('castle') || p.includes('town') || p.includes('ruin')) return 'city';
-    if (p.includes('wolf') || p.includes('beast') || p.includes('monster')) return 'wolf';
-    if (p.includes('tavern') || p.includes('inn') || p.includes('bar')) return 'tavern';
-    if (p.includes('god') || p.includes('divine') || p.includes('light')) return 'goddess';
-    return 'hiding'; // Default fallback
-  };
-
-  const updateGameState = async (node: StoryNode) => {
-    const newHp = Math.min(gameState.stats.maxHp, Math.max(0, gameState.stats.hp + (node.hpChange || 0)));
-    const newMana = Math.min(gameState.stats.maxMana, Math.max(0, gameState.stats.mana + (node.manaChange || 0)));
-    const isDead = newHp <= 0 || node.gameOver;
-
-    // Start loading the new AI image
-    let newImageUrl = gameState.currentImage;
-    if (node.imagePrompt) {
-        // Extract a simple key for the placeholder
-        const visualKey = getVisualKeyFromPrompt(node.imagePrompt);
-        setCurrentSceneType(visualKey);
-        
-        setImageLoaded(false); // Reset load state for new image
-        // Generate the real high-quality image
-        newImageUrl = await generateSceneImage(node.imagePrompt);
-    }
-
-    // Start text fade out
-    setIsSceneVisible(false);
-
-    setTimeout(() => {
-      setGameState(prev => ({
-        ...prev,
-        stats: { ...prev.stats, hp: newHp, mana: newMana },
-        currentText: node.text,
-        currentChoices: isDead ? [{id: 'intro', text: "A lelked visszatér a körforgásba (Új Játék)"}] : node.choices,
-        isGameOver: isDead || false,
-        currentImage: newImageUrl,
-        isLoading: false,
-        history: [] // No longer needed for static engine
-      }));
-      
-      setTextComplete(false);
-      setIsSceneVisible(true); // Triggers text fade in
-    }, 600);
-  };
-
   const handleChoice = async (choice: Choice) => {
+    // Determine reset logic
     if (choice.id === 'intro') {
-       // Reset stats on restart
-       setGameState(prev => ({ ...prev, stats: INITIAL_STATS, isLoading: true }));
-    } else {
-       setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
+        setStats(INITIAL_STATS);
+        setInventory([]);
+        setActiveEffects([]);
     }
     
+    setIsLoading(true);
+    setError(undefined);
+
     try {
-      // Offline Engine: Pass the choice ID to get the next specific node
-      const response = getStoryNode(choice.id);
-      await updateGameState(response);
+      // 1. Fetch next node (Sync or Async)
+      const nextNode = getStoryNode(choice.id);
+
+      // --- LOGIC: STATUS EFFECTS & STATS ---
+
+      let currentHp = stats.hp;
+      let currentMana = stats.mana;
+      let effectsLog: string[] = [];
+      let updatedEffects = [...activeEffects];
+
+      // A. Add New Effects from Next Node
+      if (nextNode.addEffects) {
+        nextNode.addEffects.forEach(effectId => {
+            const effect = getEffect(effectId);
+            if (effect) {
+                // If effect already exists, reset duration? Or duplicate? Let's stack for now or reset duration.
+                // Simple implementation: Just push.
+                updatedEffects.push(effect);
+                effectsLog.push(`${effect.name} hatása alá kerültél!`);
+            }
+        });
+      }
+
+      // B. Tick Effects (Apply Damage/Heal)
+      // We process effects *before* the node's immediate impact, or after? 
+      // Convention: Effects tick at end of turn (movement).
+      const nextEffects: StatusEffect[] = [];
+      
+      updatedEffects.forEach(effect => {
+          let effectDidSomething = false;
+          
+          if (effect.hpPerTurn) {
+              currentHp += effect.hpPerTurn;
+              effectDidSomething = true;
+          }
+          if (effect.manaPerTurn) {
+              currentMana += effect.manaPerTurn;
+              effectDidSomething = true;
+          }
+
+          // Generate log message for the tick
+          if (effectDidSomething) {
+             const hpMsg = effect.hpPerTurn ? `${effect.hpPerTurn > 0 ? '+' : ''}${effect.hpPerTurn} HP` : '';
+             const manaMsg = effect.manaPerTurn ? `${effect.manaPerTurn > 0 ? '+' : ''}${effect.manaPerTurn} Mana` : '';
+             const combined = [hpMsg, manaMsg].filter(Boolean).join(', ');
+             effectsLog.push(`${effect.name}: ${combined}`);
+          }
+
+          // Decrement duration
+          const remaining = effect.duration - 1;
+          if (remaining > 0) {
+              nextEffects.push({ ...effect, duration: remaining });
+          } else {
+              effectsLog.push(`${effect.name} hatása elmúlt.`);
+          }
+      });
+
+      // C. Apply Immediate Node Stat Changes
+      currentHp += (nextNode.hpChange || 0);
+      currentMana += (nextNode.manaChange || 0);
+
+      // D. Clamping
+      currentHp = Math.min(stats.maxHp, currentHp);
+      currentMana = Math.min(stats.maxMana, Math.max(0, currentMana));
+      
+      // E. Check Death
+      const isDead = currentHp <= 0 || nextNode.gameOver;
+
+      // 3. Process Loot
+      if (nextNode.loot && nextNode.loot.length > 0) {
+        const newItems: Item[] = [];
+        nextNode.loot.forEach(itemId => {
+           if (!inventory.some(i => i.id === itemId)) {
+               const item = getItem(itemId);
+               if (item) newItems.push(item);
+           }
+        });
+        if (newItems.length > 0) {
+           setInventory(prev => [...prev, ...newItems]);
+        }
+      }
+
+      // 4. Construct Display Text (append logs)
+      let finalText = nextNode.text;
+      if (effectsLog.length > 0) {
+          finalText += "\n\n" + effectsLog.map(log => `[${log}]`).join(" ");
+      }
+
+      // 5. Prepare Display Node
+      const nodeToDisplay: StoryNode = {
+          ...nextNode,
+          text: finalText,
+          choices: isDead ? [{id: 'intro', text: "A lelked visszatér a körforgásba (Új Játék)"}] : nextNode.choices,
+          gameOver: isDead || false
+      };
+
+      // 6. Update State
+      setStats({ ...stats, hp: currentHp, mana: currentMana });
+      setActiveEffects(nextEffects);
+      setCurrentNode(nodeToDisplay);
+
     } catch (e) {
       console.error(e);
-      setGameState(prev => ({ ...prev, isLoading: false, error: "Hiba történt. Próbáld újra." }));
-      setIsSceneVisible(true);
+      setError("Hiba történt. Próbáld újra.");
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const onTextComplete = useCallback(() => {
-    setTextComplete(true);
-  }, []);
 
   return (
     <div className="min-h-screen font-serif text-gray-100 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
@@ -169,111 +181,18 @@ const App: React.FC = () => {
             <div className="w-full max-w-lg h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent mt-4"></div>
         </header>
 
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-stretch">
-            
-            {/* Left Column: Visuals & Stats */}
-            <div className="w-full md:w-5/12 flex flex-col gap-6">
-                
-                <div className="bg-[#0f0c0c] border border-amber-900/30 p-5 rounded shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-amber-700/40 transition-colors duration-500">
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent"></div>
-                    <StatBar label="Életerő" value={gameState.stats.hp} max={gameState.stats.maxHp} color="bg-gradient-to-r from-red-900 via-red-700 to-red-500" icon={<HeartIcon />} />
-                    <StatBar label="Mana" value={gameState.stats.mana} max={gameState.stats.maxMana} color="bg-gradient-to-r from-sky-900 via-sky-600 to-sky-400" icon={<StarIcon />} />
-                </div>
-
-                {/* Image Display */}
-                <div className="flex-1 min-h-[300px] bg-[#080808] border-2 border-amber-900/20 rounded relative group overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                    <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-amber-600/40 z-20"></div>
-                    <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-amber-600/40 z-20"></div>
-                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-amber-600/40 z-20"></div>
-                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-amber-600/40 z-20"></div>
-                    
-                    <div className="w-full h-full relative bg-[#121010] flex items-center justify-center overflow-hidden">
-                         
-                         {/* 1. LAYER: CSS Visual Placeholder (Always visible, serves as loading state and background) */}
-                         <div className="absolute inset-0 z-0">
-                             <SceneVisual scene={currentSceneType} />
-                         </div>
-
-                         {/* 2. LAYER: AI Generated Image (Fades in when loaded) */}
-                         {gameState.currentImage && (
-                            <img 
-                                src={gameState.currentImage}
-                                alt="Fantasy Scene"
-                                className={`
-                                    absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-1000
-                                    ${imageLoaded ? 'opacity-100' : 'opacity-0'}
-                                `}
-                                onLoad={() => setImageLoaded(true)}
-                                referrerPolicy="no-referrer"
-                            />
-                         )}
-                         
-                         {/* Overlay Shadow */}
-                         <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20"></div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right Column: Text & Choices */}
-            <div className="w-full md:w-7/12 flex flex-col">
-                 <div className="flex-1 bg-[#0a0a0a] border-y md:border border-amber-900/30 md:rounded p-6 md:p-8 relative shadow-2xl flex flex-col">
-                    <div className={`
-                        flex-1 font-sans text-lg md:text-xl leading-8 text-amber-50 font-medium tracking-wide text-justify mb-8 drop-shadow-md
-                        transition-all duration-700 ease-out
-                        ${isSceneVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
-                    `}>
-                        {gameState.error ? (
-                            <div className="text-red-400 bg-red-950/40 p-4 border border-red-800 rounded font-bold">{gameState.error}</div>
-                        ) : (
-                            <TypewriterText 
-                                text={gameState.currentText} 
-                                speed={25}
-                                delay={300}
-                                onComplete={onTextComplete}
-                            />
-                        )}
-                    </div>
-
-                    <div className={`
-                        flex flex-col gap-4 mt-auto
-                        transition-all duration-500 delay-100
-                        ${isSceneVisible ? 'opacity-100' : 'opacity-0'}
-                    `}>
-                        <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-900/40 to-transparent mb-4"></div>
-                        
-                        {gameState.isLoading ? (
-                            <div className="text-center py-6">
-                                <span className="text-amber-500 animate-pulse text-sm tracking-[0.3em] font-bold">A SORS DÖNT...</span>
-                            </div>
-                        ) : (
-                            gameState.currentChoices.map((choice, idx) => (
-                                <button
-                                    key={choice.id}
-                                    onClick={() => handleChoice(choice)}
-                                    disabled={!textComplete}
-                                    style={{ animationDelay: `${idx * 100}ms` }}
-                                    className={`
-                                        group relative overflow-hidden p-[1px] rounded transition-all duration-300
-                                        ${!textComplete ? 'opacity-40 cursor-not-allowed grayscale' : 'opacity-100 hover:-translate-y-0.5'}
-                                    `}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-800 via-amber-600 to-amber-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    <div className="relative bg-[#111] hover:bg-[#1a1a1a] p-4 flex items-center justify-between rounded transition-colors border border-amber-800/40 group-hover:border-transparent">
-                                        <span className="font-serif text-gray-200 group-hover:text-white text-lg font-bold transition-colors tracking-wide">
-                                            {choice.text}
-                                        </span>
-                                        <span className="text-amber-600 group-hover:text-amber-300 transition-colors opacity-75 group-hover:opacity-100">
-                                            ✦
-                                        </span>
-                                    </div>
-                                </button>
-                            ))
-                        )}
-                    </div>
-                 </div>
-            </div>
-        </div>
-        <div ref={bottomRef} />
+        {/* Scene Container */}
+        {currentNode && (
+            <GameScene 
+                node={currentNode}
+                stats={stats}
+                inventory={inventory}
+                activeEffects={activeEffects}
+                onChoice={handleChoice}
+                isLoading={isLoading}
+                error={error}
+            />
+        )}
       </main>
     </div>
   );
