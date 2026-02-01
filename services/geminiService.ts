@@ -24,7 +24,7 @@ const getIntroNode = (): StoryNode => {
       { id: "1a", text: "Kiáltok a sötétségbe!" },
       { id: "1b", text: "Csendben várok és figyelek." },
     ],
-    imagePrompt: "cosmic void, colorful nebula in deep space, swirling stardust",
+    imagePrompt: "cosmic void, colorful nebula in deep space, swirling stardust, ethereal atmosphere",
     hpChange: 0,
     manaChange: 0
   };
@@ -35,20 +35,20 @@ const getIntroNode = (): StoryNode => {
 const storySchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    text: { type: Type.STRING, description: "The narrative segment describing what happens next. Atmospheric, dark fantasy style. 2-3 sentences." },
+    text: { type: Type.STRING, description: "The narrative segment describing what happens next. Atmospheric, dark fantasy style. 2-3 sentences. In HUNGARIAN." },
     choices: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
           id: { type: Type.STRING },
-          text: { type: Type.STRING, description: "The text of the choice." }
+          text: { type: Type.STRING, description: "The text of the choice. In HUNGARIAN." }
         },
         required: ["id", "text"]
       },
       description: "Exactly 2 distinct choices for the player."
     },
-    imagePrompt: { type: Type.STRING, description: "A concise, comma-separated visual description of the current scene for an image generator (e.g. 'dark swamp, glowing mushrooms, fog')." },
+    imagePrompt: { type: Type.STRING, description: "A concise, comma-separated visual description of the current scene for an image generator (e.g. 'dark swamp, glowing mushrooms, fog'). MUST BE IN ENGLISH." },
     hpChange: { type: Type.INTEGER, description: "Change in HP based on the result. Negative for damage, positive for healing. Range -20 to +10." },
     manaChange: { type: Type.INTEGER, description: "Change in Mana. Negative for using magic, positive for rest/potions." },
     gameOver: { type: Type.BOOLEAN, description: "True ONLY if HP drops to 0 or the player chose a definitively fatal action." }
@@ -83,7 +83,9 @@ export const generateStorySegment = async (
       4. Consequences: If the player does something risky, deduct HP. If they use magic, deduct Mana.
       5. Length: Keep the narrative description engaging but concise (approx 300-400 characters).
       6. Infinite: Do NOT end the story unless the player dies (HP hits 0). Keep generating new challenges.
-      7. Language: HUNGARIAN (Magyar).
+      7. Language: 
+         - Narrative (text) and Choices MUST be in HUNGARIAN (Magyar).
+         - imagePrompt MUST be in ENGLISH (for the image generator to work correctly).
     `;
 
     const contents = [
@@ -134,9 +136,17 @@ export const generateStorySegment = async (
 // --- IMAGE GENERATION ---
 
 export const generateSceneImage = async (prompt: string): Promise<string> => {
-  const style = "dark fantasy art style, digital painting, artstation, cinematic, masterpiece, highly detailed, dramatic lighting";
-  const finalPrompt = encodeURIComponent(`${prompt}, ${style}`);
-  const seed = Math.floor(Math.random() * 10000);
+  // Enhanced style prompts for better quality
+  const style = "dark fantasy masterpiece, detailed digital painting, artstation style, cinematic lighting, sharp focus, 8k, unreal engine 5 render";
   
-  return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
+  // Ensure prompt is English (handled by AI instruction mostly, but good to be safe) and safe for URL
+  const finalPrompt = encodeURIComponent(`${prompt}, ${style}`);
+  
+  // Random seed for variation
+  const seed = Math.floor(Math.random() * 1000000);
+  
+  // Removed 'nologo=true' to avoid rate-limiting on free tier. 
+  // Added 'model=flux' which often produces better results.
+  // Set aspect ratio to landscape (1024x768 approx) for the container.
+  return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1024&height=768&model=flux&seed=${seed}`;
 };
