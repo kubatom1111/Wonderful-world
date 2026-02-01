@@ -6,17 +6,15 @@ let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
-    // Use fallback empty string to prevent constructor crash if key is undefined
-    // The API call itself will fail gracefully with an error message later if key is invalid
     const apiKey = process.env.API_KEY || ""; 
     ai = new GoogleGenAI({ apiKey });
   }
   return ai;
 };
 
-const MODEL_NAME = "gemini-2.5-flash"; // Using Flash for speed/cost balance in interactive games
+const MODEL_NAME = "gemini-2.5-flash";
 
-// --- STATIC INTRO (For instant start) ---
+// --- STATIC INTRO ---
 const getIntroNode = (): StoryNode => {
   return {
     text: "A fékcsikorgás emléke lassan elhalványul. Nem érzel fájdalmat, csak végtelen csendet. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy örvénylő, sötét csillagködöt. Egyedül vagy a semmiben. A tested súlytalan, mintha vízben lebegnél.",
@@ -24,7 +22,7 @@ const getIntroNode = (): StoryNode => {
       { id: "1a", text: "Kiáltok a sötétségbe!" },
       { id: "1b", text: "Csendben várok és figyelek." },
     ],
-    imagePrompt: "cosmic void, colorful nebula in deep space, swirling stardust, ethereal atmosphere",
+    imagePrompt: "void", // Simple keyword is enough now
     hpChange: 0,
     manaChange: 0
   };
@@ -48,10 +46,10 @@ const storySchema: Schema = {
       },
       description: "Exactly 2 distinct choices for the player."
     },
-    imagePrompt: { type: Type.STRING, description: "A concise, comma-separated visual description of the current scene for an image generator (e.g. 'dark swamp, glowing mushrooms, fog'). MUST BE IN ENGLISH." },
-    hpChange: { type: Type.INTEGER, description: "Change in HP based on the result. Negative for damage, positive for healing. Range -20 to +10." },
-    manaChange: { type: Type.INTEGER, description: "Change in Mana. Negative for using magic, positive for rest/potions." },
-    gameOver: { type: Type.BOOLEAN, description: "True ONLY if HP drops to 0 or the player chose a definitively fatal action." }
+    imagePrompt: { type: Type.STRING, description: "One or two KEYWORDS describing the biome/location for image selection. Choose from: 'forest', 'cave', 'city', 'castle', 'tavern', 'mountain', 'water', 'fire', 'void', 'ruins', 'snow'. MUST BE ENGLISH." },
+    hpChange: { type: Type.INTEGER, description: "Change in HP. Range -20 to +10." },
+    manaChange: { type: Type.INTEGER, description: "Change in Mana. Negative for using magic, positive for rest." },
+    gameOver: { type: Type.BOOLEAN, description: "True ONLY if HP drops to 0." }
   },
   required: ["text", "choices", "imagePrompt", "hpChange", "manaChange", "gameOver"]
 };
@@ -62,41 +60,32 @@ export const generateStorySegment = async (
   currentStats?: GameStats
 ): Promise<StoryNode> => {
   
-  // 1. Return Static Intro if it's the very first turn
-  if (history.length === 0) {
-    return getIntroNode();
-  }
+  if (history.length === 0) return getIntroNode();
 
-  // 2. Generate Dynamic Continuation
   try {
     const client = getAiClient();
     
     const systemInstruction = `
-      You are the Dungeon Master of a 'Beautiful New World', a Dark Fantasy Isekai text adventure.
+      You are the Dungeon Master of 'Beautiful New World', a Dark Fantasy Isekai.
+      Current Stats: HP: ${currentStats?.hp ?? 100}, Mana: ${currentStats?.mana ?? 50}.
       
-      Current Player Stats: HP: ${currentStats?.hp ?? 100}, Mana: ${currentStats?.mana ?? 50}.
-      
+      Tone: Dark Souls / Elden Ring. Mysterious, dangerous, beautiful.
       Rules:
-      1. Tone: Dark, mysterious, mature, atmospheric. Similar to Dark Souls or Elden Ring lore.
-      2. Continuity: Continue the story logically from the last user choice.
-      3. Variety: Introduce new environments (ruins, cursed forests, floating cities, caves), weird creatures, and magic. Do not stay in one place too long.
-      4. Consequences: If the player does something risky, deduct HP. If they use magic, deduct Mana.
-      5. Length: Keep the narrative description engaging but concise (approx 300-400 characters).
-      6. Infinite: Do NOT end the story unless the player dies (HP hits 0). Keep generating new challenges.
-      7. Language: 
-         - Narrative (text) and Choices MUST be in HUNGARIAN (Magyar).
-         - imagePrompt MUST be in ENGLISH (for the image generator to work correctly).
+      1. Continue the story logically.
+      2. If HP <= 0, game over.
+      3. Language: Narrative/Choices in HUNGARIAN.
+      4. Image Prompt: Return a SINGLE KEYWORD describing the location (e.g., 'forest', 'cave', 'city').
     `;
 
     const contents = [
       ...history,
-      { role: 'user', parts: [{ text: `Player Choice: ${userChoice}. Generate the next scene.` }] }
+      { role: 'user', parts: [{ text: `Action: ${userChoice}. Generate next scene.` }] }
     ];
 
     const response = await client.models.generateContent({
       model: MODEL_NAME,
       config: {
-        systemInstruction: systemInstruction,
+        systemInstruction,
         responseMimeType: "application/json",
         responseSchema: storySchema,
         temperature: 0.8, 
@@ -105,48 +94,99 @@ export const generateStorySegment = async (
     });
 
     const jsonText = response.text;
-    if (!jsonText) throw new Error("No response from AI");
-
+    if (!jsonText) throw new Error("No response");
     const generatedNode = JSON.parse(jsonText) as StoryNode;
     
-    // Fallback if AI forgets to give IDs
     generatedNode.choices = generatedNode.choices.map((c, i) => ({
       ...c,
-      id: c.id || `choice_${Date.now()}_${i}`
+      id: c.id || `c_${Date.now()}_${i}`
     }));
 
     return generatedNode;
 
   } catch (error) {
-    console.error("AI Generation failed:", error);
-    // Emergency Fallback
+    console.error("AI Error:", error);
     return {
-      text: "A mágia köde elhomályosítja a látásodat. Egy pillanatra megszédülsz, de aztán kitisztul a kép. (Hiba történt a kapcsolatban, de a kaland folytatódik...)",
-      choices: [
-        { id: "fallback_1", text: "Továbbmegyek az úton." },
-        { id: "fallback_2", text: "Megpihenek egy pillanatra." }
-      ],
-      imagePrompt: "mysterious fog, glitch art, dark fantasy",
+      text: "A világ elhomályosodik egy pillanatra, majd újraéled. (Kapcsolódási hiba, de a kaland folytatódik...)",
+      choices: [{ id: "f1", text: "Tovább" }, { id: "f2", text: "Körülnézek" }],
+      imagePrompt: "void",
       hpChange: 0,
       manaChange: 0
     };
   }
 };
 
-// --- IMAGE GENERATION ---
+// --- CURATED IMAGE LIBRARY (NO AI GENERATION) ---
+// High-quality Unsplash IDs to ensure consistent Dark Fantasy aesthetic
+const IMAGE_LIBRARY: Record<string, string[]> = {
+  void: [
+    "photo-1534796636912-3b95b3ab5980", // Nebula
+    "photo-1419242902214-272b3f66ee7a", // Dark Sky
+    "photo-1610296669228-602fa827fc1f", // Galaxy
+  ],
+  forest: [
+    "photo-1511497584788-876760111969", // Dark Forest
+    "photo-1542273917363-3b1817f69a2d", // Foggy Woods
+    "photo-1473448912268-2022ce9509d8", // Ancient Trees
+  ],
+  cave: [
+    "photo-1504333638930-c8787321eee0", // Dark Cave
+    "photo-1516934024742-b461fba47600", // Cave Light
+    "photo-1596328906963-c35477c98030", // Dungeon feel
+  ],
+  city: [
+    "photo-1599707367072-cd6ad66aa5a8", // Gothic Castle
+    "photo-1533929736458-ca588d080e81", // Dark Alley
+    "photo-1519074069444-1ba4fff66d16", // Fantasy City feel
+  ],
+  tavern: [
+    "photo-1510812431401-41d2bd2722f3", // Wine/Dark
+    "photo-1605218427368-35b861280387", // Candlelight
+    "photo-1574096079513-d82599602956", // Inn atmosphere
+  ],
+  ruins: [
+    "photo-1518709268805-4e9042af9f23", // Stone Ruins
+    "photo-1461360228754-6e81c478b882", // Ancient Columns
+  ],
+  fire: [
+    "photo-1486162928267-e6274cb310d7", // Bonfire
+    "photo-1520186994231-6ea0019d8db2", // Dark Ember
+  ],
+  water: [
+    "photo-1468581356527-ae0168019672", // Dark Ocean
+    "photo-1551288049-bebda4e38f71", // Stormy Sea
+  ],
+  mountain: [
+    "photo-1464822759023-fed622ff2c3b", // Dark Mountains
+    "photo-1519681393784-d120267933ba", // Snowy Peaks
+  ]
+};
+
+const DEFAULT_IMAGES = [
+  "photo-1500964757637-c85e8a162699", // Abstract Landscape
+  "photo-1518066000714-58c45f1a2c0a", // Mist
+];
 
 export const generateSceneImage = async (prompt: string): Promise<string> => {
-  // Enhanced style prompts for better quality
-  const style = "dark fantasy masterpiece, detailed digital painting, artstation style, cinematic lighting, sharp focus, 8k, unreal engine 5 render";
+  const p = prompt.toLowerCase();
   
-  // Ensure prompt is English (handled by AI instruction mostly, but good to be safe) and safe for URL
-  const finalPrompt = encodeURIComponent(`${prompt}, ${style}`);
+  // Find category based on keyword
+  let category = 'default';
+  if (p.includes('void') || p.includes('space') || p.includes('star')) category = 'void';
+  else if (p.includes('forest') || p.includes('tree') || p.includes('wood')) category = 'forest';
+  else if (p.includes('cave') || p.includes('dungeon') || p.includes('under')) category = 'cave';
+  else if (p.includes('city') || p.includes('castle') || p.includes('town')) category = 'city';
+  else if (p.includes('tavern') || p.includes('inn') || p.includes('bar')) category = 'tavern';
+  else if (p.includes('ruin') || p.includes('ancient')) category = 'ruins';
+  else if (p.includes('fire') || p.includes('burn') || p.includes('hell')) category = 'fire';
+  else if (p.includes('water') || p.includes('sea') || p.includes('lake')) category = 'water';
+  else if (p.includes('mountain') || p.includes('hill')) category = 'mountain';
+
+  const collection = IMAGE_LIBRARY[category] || DEFAULT_IMAGES;
   
-  // Random seed for variation
-  const seed = Math.floor(Math.random() * 1000000);
+  // Pick a random image from the collection
+  const imageId = collection[Math.floor(Math.random() * collection.length)];
   
-  // Removed 'nologo=true' to avoid rate-limiting on free tier. 
-  // Added 'model=flux' which often produces better results.
-  // Set aspect ratio to landscape (1024x768 approx) for the container.
-  return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1024&height=768&model=flux&seed=${seed}`;
+  // Return optimized Unsplash URL
+  return `https://images.unsplash.com/${imageId}?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80`;
 };
