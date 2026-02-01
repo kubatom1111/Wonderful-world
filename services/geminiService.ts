@@ -2,11 +2,9 @@ import { StoryNode } from "../types";
 
 // --- STATIC STORY ENGINE ---
 
-// A képek helyett most már csak "jelenet típusokat" adunk vissza.
-// Ezeket a SceneVisual komponens fogja renderelni CSS/SVG segítségével.
-// Így garantáltan nem lesz betöltési hiba.
-
 const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null): StoryNode => {
+  // A historyLength alapján határozzuk meg a történet pontjait
+  
   // 1. KÖR: KEZDET (0) - Űr / Semmi
   if (historyLength === 0) {
     return {
@@ -15,7 +13,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
         { id: "1a", text: "Kiáltok a sötétségbe!" },
         { id: "1b", text: "Csendben várok és figyelek." },
       ],
-      imagePrompt: "intro", // Space scene
+      imagePrompt: "intro",
       hpChange: 0,
       manaChange: 0
     };
@@ -29,7 +27,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
         { id: "2a", text: "Hálásan elfogadom az ajánlatot." },
         { id: "2b", text: "Milyen árat kell fizetnem ezért?" },
       ],
-      imagePrompt: "goddess", // Divine light scene
+      imagePrompt: "goddess", 
       hpChange: 0,
       manaChange: 0
     };
@@ -43,7 +41,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
         { id: "3a", text: "Felállok és elindulok az ösvényen." },
         { id: "3b", text: "Megvizsgálom a környezetemet mágiát keresve." },
       ],
-      imagePrompt: "forest", // Forest scene
+      imagePrompt: "forest",
       hpChange: 0,
       manaChange: 10
     };
@@ -57,7 +55,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
         { id: "4a", text: "Tűzgolyót dobok rá! (Harc)" },
         { id: "4b", text: "Felmászok egy magas fára. (Menekülés)" },
       ],
-      imagePrompt: "wolf", // Danger/Wolf scene
+      imagePrompt: "wolf",
       hpChange: -5,
       manaChange: 0
     };
@@ -74,7 +72,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
           { id: "5a", text: "Büszkén folytatom az utam." },
           { id: "5b", text: "Megpihenek regenerálódni." },
         ],
-        imagePrompt: "fire", // Fire/Victory scene
+        imagePrompt: "fire",
         hpChange: -10,
         manaChange: -30
       };
@@ -85,7 +83,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
           { id: "5a", text: "Lemászok és osonva tovább indulok." },
           { id: "5b", text: "Fent maradok biztonságban." },
         ],
-        imagePrompt: "hiding", // Tree/Hiding scene
+        imagePrompt: "hiding",
         hpChange: 0,
         manaChange: -5
       };
@@ -100,7 +98,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
         { id: "6a", text: "Belépek a városkapun." },
         { id: "6b", text: "A piactér felé veszem az irányt." },
       ],
-      imagePrompt: "city", // Castle/City scene
+      imagePrompt: "city",
       hpChange: 10,
       manaChange: 10
     };
@@ -113,7 +111,7 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
       choices: [
         { id: "restart", text: "Újraélem a kalandot (Restart)" },
       ],
-      imagePrompt: "tavern", // Tavern scene
+      imagePrompt: "tavern",
       hpChange: 20,
       manaChange: 20,
       gameOver: true
@@ -129,7 +127,19 @@ const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null
   };
 };
 
-// --- MOCK API ---
+// --- IMAGE GENERATION ---
+
+// Mapping simple keys to complex AI prompts
+const PROMPT_MAP: Record<string, string> = {
+  intro: "cosmic void, colorful nebula in deep space, swirling stardust, cinematic lighting, 8k resolution, mysterious atmosphere",
+  goddess: "ethereal glowing goddess silhouette made of starlight, divine light beams in darkness, mystical fantasy art, no face, cinematic composition",
+  forest: "dark ancient forest with purple glowing bioluminescent plants, foggy atmosphere, mystical trees, fantasy landscape, 8k",
+  wolf: "gigantic black wolf with glowing red eyes in a dark forest, menacing beast, fantasy monster art, detailed fur, cinematic lighting",
+  fire: "magical fireball spell in hand, first person view, glowing orange flames, dark background, rpg fantasy art, detailed particles",
+  hiding: "looking up at dark giant trees in a forest, hiding in shadows, mysterious atmosphere, night time, fantasy concept art",
+  city: "majestic white fantasy castle on a hill, floating crystals, sunrise lighting, epic fantasy architecture, wide shot, matte painting",
+  tavern: "cozy medieval tavern interior, candle light, wooden tables, fantasy rpg atmosphere, warm lighting, detailed background"
+};
 
 export const generateStorySegment = async (
   history: { role: 'user' | 'model'; parts: { text: string }[] }[],
@@ -139,8 +149,15 @@ export const generateStorySegment = async (
   return getStaticStoryNode(history.length, userChoice);
 };
 
-export const generateSceneImage = async (prompt: string): Promise<string | undefined> => {
-  // Most már közvetlenül a prompt kulcsot adjuk vissza, nem URL-t.
-  // A megjelenítést a SceneVisual komponens végzi.
-  return prompt;
+export const generateSceneImage = async (promptKey: string): Promise<string> => {
+  // Use Pollinations.ai for reliable, style-enforced generation
+  const basePrompt = PROMPT_MAP[promptKey] || PROMPT_MAP.intro;
+  // Append style enforcers to ensure consistency and avoid photorealism of modern people
+  const finalPrompt = encodeURIComponent(`${basePrompt}, dark fantasy art style, digital painting, artstation, cinematic, masterpiece`);
+  // Add random seed to prevent caching issues if needed, though for consistency we might want it stable. 
+  // Let's keep it stable per scene type for now to save bandwidth/generation time, or random for variety?
+  // Let's add a small random seed to ensure it regenerates if reload happens
+  const seed = Math.floor(Math.random() * 1000);
+  
+  return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
 };

@@ -27,9 +27,13 @@ const App: React.FC = () => {
     currentText: "",
     currentChoices: [],
     isGameOver: false,
-    currentImage: 'intro' // Default scene
+    currentImage: undefined // Holds the URL
   });
 
+  // Track the scene type ('intro', 'forest') for the CSS visual placeholder
+  const [currentSceneType, setCurrentSceneType] = useState<string>('intro');
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
   const [textComplete, setTextComplete] = useState(false);
   const [isSceneVisible, setIsSceneVisible] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -62,11 +66,13 @@ const App: React.FC = () => {
     const newMana = Math.min(gameState.stats.maxMana, Math.max(0, gameState.stats.mana + (node.manaChange || 0)));
     const isDead = newHp <= 0 || node.gameOver;
 
-    // Load Scene Type
-    let sceneType = gameState.currentImage || 'intro';
+    // Start loading the new AI image
+    // Note: We update the scene type immediately for the CSS visual
+    let newImageUrl = gameState.currentImage;
     if (node.imagePrompt) {
-        const generated = await generateSceneImage(node.imagePrompt);
-        if (generated) sceneType = generated;
+        setCurrentSceneType(node.imagePrompt);
+        setImageLoaded(false); // Reset load state for new image
+        newImageUrl = await generateSceneImage(node.imagePrompt);
     }
 
     // Start text fade out
@@ -79,7 +85,7 @@ const App: React.FC = () => {
         currentText: node.text,
         currentChoices: isDead ? [{id: 'restart', text: "Új Élet Kezdése (Restart)"}] : node.choices,
         isGameOver: isDead || false,
-        currentImage: sceneType,
+        currentImage: newImageUrl,
         isLoading: false,
         history: [
           ...prev.history,
@@ -93,7 +99,6 @@ const App: React.FC = () => {
   };
 
   const handleChoice = async (choice: Choice) => {
-    // Robust restart
     if (choice.id === 'restart') {
       window.location.reload();
       return;
@@ -101,7 +106,6 @@ const App: React.FC = () => {
 
     setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     
-    // We add the user choice to history to track turns in the static engine
     const updatedHistory = [
       ...gameState.history,
       { role: 'user' as const, parts: [{ text: choice.text }] }
@@ -126,26 +130,22 @@ const App: React.FC = () => {
       
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
-         {/* Deep dark gradient */}
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-[#110e0e] via-[#050505] to-[#000000] opacity-90"></div>
-        {/* Subtle magical glow in center */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-amber-900/10 rounded-full blur-[120px]"></div>
       </div>
 
       {/* Main Grimoire Container */}
       <main className="w-full max-w-5xl z-10 flex flex-col gap-8">
         
-        {/* Header Title Area */}
+        {/* Header */}
         <header className="relative w-full flex flex-col items-center justify-center py-6 md:py-10">
             <div className="w-full max-w-lg h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent mb-4"></div>
-            
             <div className="relative group cursor-default">
                 <div className="absolute -inset-4 bg-amber-600/10 blur-xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-1000"></div>
                 <h1 className="relative text-3xl md:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-400 to-amber-700 tracking-[0.15em] drop-shadow-lg uppercase text-center font-serif leading-tight">
                     Beautiful<br className="md:hidden" /> New World
                 </h1>
             </div>
-
             <div className="flex items-center justify-center gap-4 mt-4 opacity-80">
                 <svg className="w-8 h-8 text-amber-700/60 rotate-180" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
                 <div className="flex flex-col items-center">
@@ -153,54 +153,56 @@ const App: React.FC = () => {
                 </div>
                 <svg className="w-8 h-8 text-amber-700/60" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
             </div>
-            
             <div className="w-full max-w-lg h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent mt-4"></div>
         </header>
 
-        {/* Game Layout */}
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-stretch">
             
             {/* Left Column: Visuals & Stats */}
             <div className="w-full md:w-5/12 flex flex-col gap-6">
                 
-                {/* Stats Panel */}
                 <div className="bg-[#0f0c0c] border border-amber-900/30 p-5 rounded shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-amber-700/40 transition-colors duration-500">
                     <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent"></div>
-                    <StatBar 
-                        label="Életerő" 
-                        value={gameState.stats.hp} 
-                        max={gameState.stats.maxHp} 
-                        color="bg-gradient-to-r from-red-900 via-red-700 to-red-500" 
-                        icon={<HeartIcon />}
-                    />
-                    <StatBar 
-                        label="Mana" 
-                        value={gameState.stats.mana} 
-                        max={gameState.stats.maxMana} 
-                        color="bg-gradient-to-r from-sky-900 via-sky-600 to-sky-400" 
-                        icon={<StarIcon />}
-                    />
+                    <StatBar label="Életerő" value={gameState.stats.hp} max={gameState.stats.maxHp} color="bg-gradient-to-r from-red-900 via-red-700 to-red-500" icon={<HeartIcon />} />
+                    <StatBar label="Mana" value={gameState.stats.mana} max={gameState.stats.maxMana} color="bg-gradient-to-r from-sky-900 via-sky-600 to-sky-400" icon={<StarIcon />} />
                 </div>
 
                 {/* Image Display */}
                 <div className="flex-1 min-h-[300px] bg-[#080808] border-2 border-amber-900/20 rounded relative group overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                     <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-amber-600/40 z-20"></div>
-                     <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-amber-600/40 z-20"></div>
-                     <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-amber-600/40 z-20"></div>
-                     <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-amber-600/40 z-20"></div>
+                    <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-amber-600/40 z-20"></div>
+                    <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-amber-600/40 z-20"></div>
+                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-amber-600/40 z-20"></div>
+                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-amber-600/40 z-20"></div>
                     
-                    <div className="w-full h-full relative bg-[#121010]">
-                         {gameState.isLoading && isSceneVisible && (
-                             <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/50 backdrop-blur-sm">
-                                 <div className="w-12 h-12 border-2 border-amber-600/30 border-t-amber-500 rounded-full animate-spin mb-3"></div>
-                                 <span className="text-amber-700/80 text-xs tracking-widest font-bold">VILÁG SZÖVÉSE...</span>
-                             </div>
+                    <div className="w-full h-full relative bg-[#121010] flex items-center justify-center overflow-hidden">
+                         
+                         {/* 1. LAYER: CSS Visual Placeholder (Always visible, serves as loading state and background) */}
+                         <div className="absolute inset-0 z-0">
+                             <SceneVisual scene={currentSceneType} />
+                         </div>
+
+                         {/* 2. LAYER: AI Generated Image (Fades in when loaded) */}
+                         {gameState.currentImage && (
+                            <img 
+                                src={gameState.currentImage}
+                                alt="Fantasy Scene"
+                                className={`
+                                    absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-1000
+                                    ${imageLoaded ? 'opacity-100' : 'opacity-0'}
+                                `}
+                                onLoad={() => setImageLoaded(true)}
+                                referrerPolicy="no-referrer"
+                            />
                          )}
                          
-                         {/* Render the generated scene visuals */}
-                         <SceneVisual scene={gameState.currentImage || 'intro'} />
-                         
-                         {/* Overlay Shadow - Always on top */}
+                         {/* Loading spinner overlay if image is generating */}
+                         {!imageLoaded && !gameState.isLoading && (
+                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20">
+                                 <div className="w-8 h-8 border-2 border-amber-500/50 border-t-amber-200 rounded-full animate-spin"></div>
+                             </div>
+                         )}
+
+                         {/* Overlay Shadow */}
                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20"></div>
                     </div>
                 </div>
@@ -209,7 +211,6 @@ const App: React.FC = () => {
             {/* Right Column: Text & Choices */}
             <div className="w-full md:w-7/12 flex flex-col">
                  <div className="flex-1 bg-[#0a0a0a] border-y md:border border-amber-900/20 md:rounded p-6 md:p-8 relative shadow-2xl flex flex-col">
-                    
                     <div className={`
                         flex-1 font-sans text-lg md:text-xl leading-8 text-gray-300 tracking-wide text-justify mb-8
                         transition-all duration-700 ease-out
