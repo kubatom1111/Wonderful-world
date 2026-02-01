@@ -595,5 +595,5 @@ export const generateSceneImage = async (prompt: string): Promise<string> => {
   const imageId = collection[Math.floor(Math.random() * collection.length)];
   
   // Return optimized Unsplash URL
-  return `https://images.unsplash.com/${imageId}?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80`;
+  return `https://images.unsplash.com/${imageId}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=70`;
 };

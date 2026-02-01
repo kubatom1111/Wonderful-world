@@ -208,13 +208,6 @@ const App: React.FC = () => {
                             />
                          )}
                          
-                         {/* Loading spinner overlay if image is generating */}
-                         {!imageLoaded && !gameState.isLoading && (
-                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20">
-                                 <div className="w-8 h-8 border-2 border-amber-500/50 border-t-amber-200 rounded-full animate-spin"></div>
-                             </div>
-                         )}
-
                          {/* Overlay Shadow */}
                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20"></div>
                     </div>
