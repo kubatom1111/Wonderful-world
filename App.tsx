@@ -3,6 +3,7 @@ import { INITIAL_STATS, GameState, StoryNode, Choice } from './types';
 import { generateStorySegment, generateSceneImage } from './services/geminiService';
 import TypewriterText from './components/TypewriterText';
 import StatBar from './components/StatBar';
+import SceneVisual from './components/SceneVisual';
 
 // Icons
 const HeartIcon = () => (
@@ -26,13 +27,14 @@ const App: React.FC = () => {
     currentText: "",
     currentChoices: [],
     isGameOver: false,
+    currentImage: 'intro' // Default scene
   });
 
   const [textComplete, setTextComplete] = useState(false);
   const [isSceneVisible, setIsSceneVisible] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Initialize game
+  // Initialize game on mount
   useEffect(() => {
     const initGame = async () => {
       try {
@@ -40,14 +42,12 @@ const App: React.FC = () => {
         await updateGameState(response);
       } catch (e) {
         console.error(e);
-        setGameState(prev => ({ ...prev, isLoading: false, error: "A mágia instabil..." }));
+        setGameState(prev => ({ ...prev, isLoading: false, error: "Hiba történt a történet betöltése közben." }));
         setIsSceneVisible(true);
       }
     };
 
-    if (gameState.currentTurn === 0 && gameState.history.length === 0) {
-      initGame();
-    }
+    initGame();
   }, []);
 
   // Scroll logic
@@ -62,12 +62,14 @@ const App: React.FC = () => {
     const newMana = Math.min(gameState.stats.maxMana, Math.max(0, gameState.stats.mana + (node.manaChange || 0)));
     const isDead = newHp <= 0 || node.gameOver;
 
-    let imageUrl = gameState.currentImage;
+    // Load Scene Type
+    let sceneType = gameState.currentImage || 'intro';
     if (node.imagePrompt) {
         const generated = await generateSceneImage(node.imagePrompt);
-        if (generated) imageUrl = generated;
+        if (generated) sceneType = generated;
     }
 
+    // Start text fade out
     setIsSceneVisible(false);
 
     setTimeout(() => {
@@ -77,20 +79,21 @@ const App: React.FC = () => {
         currentText: node.text,
         currentChoices: isDead ? [{id: 'restart', text: "Új Élet Kezdése (Restart)"}] : node.choices,
         isGameOver: isDead || false,
-        currentImage: imageUrl,
+        currentImage: sceneType,
         isLoading: false,
         history: [
           ...prev.history,
-          { role: 'model', parts: [{ text: JSON.stringify(node) }] }
+          { role: 'model', parts: [{ text: JSON.stringify(node) }] } 
         ]
       }));
       
       setTextComplete(false);
-      setIsSceneVisible(true);
-    }, 600); // Transition delay
+      setIsSceneVisible(true); // Triggers text fade in
+    }, 600);
   };
 
   const handleChoice = async (choice: Choice) => {
+    // Robust restart
     if (choice.id === 'restart') {
       window.location.reload();
       return;
@@ -98,9 +101,10 @@ const App: React.FC = () => {
 
     setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     
+    // We add the user choice to history to track turns in the static engine
     const updatedHistory = [
       ...gameState.history,
-      { role: 'user' as const, parts: [{ text: `A játékos válasza: ${choice.text}` }] }
+      { role: 'user' as const, parts: [{ text: choice.text }] }
     ];
 
     try {
@@ -108,7 +112,7 @@ const App: React.FC = () => {
       await updateGameState(response);
     } catch (e) {
       console.error(e);
-      setGameState(prev => ({ ...prev, isLoading: false, error: "Az Univerzum nem válaszol. Próbáld újra." }));
+      setGameState(prev => ({ ...prev, isLoading: false, error: "A sors fonalai elszakadtak. Próbáld újra." }));
       setIsSceneVisible(true);
     }
   };
@@ -133,19 +137,15 @@ const App: React.FC = () => {
         
         {/* Header Title Area */}
         <header className="relative w-full flex flex-col items-center justify-center py-6 md:py-10">
-            {/* Top decorative divider */}
             <div className="w-full max-w-lg h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent mb-4"></div>
             
             <div className="relative group cursor-default">
-                 {/* Title Glow Effect */}
                 <div className="absolute -inset-4 bg-amber-600/10 blur-xl rounded-full opacity-50 group-hover:opacity-75 transition-opacity duration-1000"></div>
-                
                 <h1 className="relative text-3xl md:text-5xl lg:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-400 to-amber-700 tracking-[0.15em] drop-shadow-lg uppercase text-center font-serif leading-tight">
                     Beautiful<br className="md:hidden" /> New World
                 </h1>
             </div>
 
-            {/* Subtitle with ornament */}
             <div className="flex items-center justify-center gap-4 mt-4 opacity-80">
                 <svg className="w-8 h-8 text-amber-700/60 rotate-180" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
                 <div className="flex flex-col items-center">
@@ -154,7 +154,6 @@ const App: React.FC = () => {
                 <svg className="w-8 h-8 text-amber-700/60" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg>
             </div>
             
-            {/* Bottom decorative divider */}
             <div className="w-full max-w-lg h-[1px] bg-gradient-to-r from-transparent via-amber-700/50 to-transparent mt-4"></div>
         </header>
 
@@ -185,28 +184,24 @@ const App: React.FC = () => {
 
                 {/* Image Display */}
                 <div className="flex-1 min-h-[300px] bg-[#080808] border-2 border-amber-900/20 rounded relative group overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                     {/* Magical Corner Borders */}
-                    <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-amber-600/40 z-20"></div>
-                    <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-amber-600/40 z-20"></div>
-                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-amber-600/40 z-20"></div>
-                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-amber-600/40 z-20"></div>
+                     <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-amber-600/40 z-20"></div>
+                     <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-amber-600/40 z-20"></div>
+                     <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-amber-600/40 z-20"></div>
+                     <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-amber-600/40 z-20"></div>
                     
-                    {/* Image Content */}
-                    <div className="w-full h-full relative">
-                         {gameState.isLoading && !gameState.currentImage && isSceneVisible && (
-                             <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="w-full h-full relative bg-[#121010]">
+                         {gameState.isLoading && isSceneVisible && (
+                             <div className="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/50 backdrop-blur-sm">
                                  <div className="w-12 h-12 border-2 border-amber-600/30 border-t-amber-500 rounded-full animate-spin mb-3"></div>
-                                 <span className="text-amber-700/50 text-xs tracking-widest">VILÁG SZÖVÉSE...</span>
+                                 <span className="text-amber-700/80 text-xs tracking-widest font-bold">VILÁG SZÖVÉSE...</span>
                              </div>
                          )}
-                         {gameState.currentImage && (
-                             <img 
-                                src={gameState.currentImage} 
-                                alt="Story Scene" 
-                                className={`w-full h-full object-cover transition-all duration-1000 ease-in-out ${isSceneVisible && !gameState.isLoading ? 'opacity-90 scale-100 hover:scale-105 hover:opacity-100 saturate-[0.8] hover:saturate-100' : 'opacity-0 scale-110'}`}
-                             />
-                         )}
-                         <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.8)]"></div>
+                         
+                         {/* Render the generated scene visuals */}
+                         <SceneVisual scene={gameState.currentImage || 'intro'} />
+                         
+                         {/* Overlay Shadow - Always on top */}
+                         <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20"></div>
                     </div>
                 </div>
             </div>
@@ -215,7 +210,6 @@ const App: React.FC = () => {
             <div className="w-full md:w-7/12 flex flex-col">
                  <div className="flex-1 bg-[#0a0a0a] border-y md:border border-amber-900/20 md:rounded p-6 md:p-8 relative shadow-2xl flex flex-col">
                     
-                    {/* Text Content */}
                     <div className={`
                         flex-1 font-sans text-lg md:text-xl leading-8 text-gray-300 tracking-wide text-justify mb-8
                         transition-all duration-700 ease-out
@@ -226,14 +220,13 @@ const App: React.FC = () => {
                         ) : (
                             <TypewriterText 
                                 text={gameState.currentText} 
-                                speed={30}
+                                speed={25}
                                 delay={300}
                                 onComplete={onTextComplete}
                             />
                         )}
                     </div>
 
-                    {/* Choices Area */}
                     <div className={`
                         flex flex-col gap-4 mt-auto
                         transition-all duration-500 delay-100
@@ -257,10 +250,7 @@ const App: React.FC = () => {
                                         ${!textComplete ? 'opacity-40 cursor-not-allowed grayscale' : 'opacity-100 hover:-translate-y-0.5'}
                                     `}
                                 >
-                                    {/* Gradient Border */}
                                     <div className="absolute inset-0 bg-gradient-to-r from-amber-900/40 via-amber-600/40 to-amber-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                    
-                                    {/* Button Content */}
                                     <div className="relative bg-[#111] hover:bg-[#161616] p-4 flex items-center justify-between rounded transition-colors border border-amber-900/20 group-hover:border-transparent">
                                         <span className="font-serif text-gray-400 group-hover:text-amber-100 text-lg transition-colors">
                                             {choice.text}
@@ -273,12 +263,9 @@ const App: React.FC = () => {
                             ))
                         )}
                     </div>
-
                  </div>
             </div>
-
         </div>
-
         <div ref={bottomRef} />
       </main>
     </div>

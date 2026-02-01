@@ -1,231 +1,146 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { StoryNode } from "../types";
 
-// Helper to safely get the API key
-const getApiKey = () => {
-  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    return process.env.API_KEY;
-  }
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
-    // @ts-ignore
-    return import.meta.env.VITE_API_KEY;
-  }
-  return "";
-};
+// --- STATIC STORY ENGINE ---
 
-const apiKey = getApiKey();
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// A képek helyett most már csak "jelenet típusokat" adunk vissza.
+// Ezeket a SceneVisual komponens fogja renderelni CSS/SVG segítségével.
+// Így garantáltan nem lesz betöltési hiba.
 
-// --- OFFLINE / DEMO MODE ASSETS ---
-
-const OFFLINE_IMAGES = {
-  void: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2894&auto=format&fit=crop", // Abstract Space
-  goddess: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=2787&auto=format&fit=crop", // Mysterious Light/Figure
-  forest: "https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=2832&auto=format&fit=crop", // Dark Forest
-  village: "https://images.unsplash.com/photo-1595878715977-2e8f8df18ea8?q=80&w=2787&auto=format&fit=crop", // Old Village
-  battle: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2787&auto=format&fit=crop", // Fire/Battle
-};
-
-// Simple Offline Story Engine
-const getOfflineStoryNode = (historyLength: number, lastChoice: string | null): StoryNode => {
-  // PROLOGUE
-  if (!lastChoice) {
+const getStaticStoryNode = (historyLength: number, lastChoiceText: string | null): StoryNode => {
+  // 1. KÖR: KEZDET (0) - Űr / Semmi
+  if (historyLength === 0) {
     return {
-      text: "A fékk, a csikorgás, majd a tompa csattanás emléke lassan elhalványul. Nem érzel fájdalmat. Nem érzel semmit. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy végtelen, örvénylő csillagködöt. Előtted egy ragyogó alak lebeg, akinek arcát nem látod tisztán, de jelenléte egyszerre megnyugtató és félelmetes. \n\n\"Üdvözöllek, utazó\" – szólal meg a hangja az elmédben. – \"Az életed fonala elszakadt a Földön, de a lelked túl erős a megsemmisüléshez.\"",
+      text: "A fékcsikorgás emléke lassan elhalványul. Nem érzel fájdalmat, csak végtelen csendet. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy örvénylő, sötét csillagködöt. Egyedül vagy a semmiben. A tested súlytalan, mintha vízben lebegnél.",
       choices: [
-        { id: "1a", text: "Hol vagyok? Ki vagy te?" },
-        { id: "1b", text: "Ez a mennyország? Vagy a pokol?" },
+        { id: "1a", text: "Kiáltok a sötétségbe!" },
+        { id: "1b", text: "Csendben várok és figyelek." },
       ],
-      imagePrompt: "void",
+      imagePrompt: "intro", // Space scene
       hpChange: 0,
-      manaChange: 0,
-      gameOver: false
+      manaChange: 0
     };
   }
 
-  // SCENE 1: The Dialogue
-  if (historyLength <= 2) { // Early game
+  // 2. KÖR: ISTENNŐ (2) - Fény
+  if (historyLength === 2) {
     return {
-      text: "\"Én vagyok a Kezdet és a Vég őrzője ebben a szektorban\" – válaszolja a lény, miközben a csillagok táncolni kezdenek körülötte. – \"A világ, ahonnan jöttél, már a múlté. De felkínálok neked egy lehetőséget. Egy új világot, tele mágiával, veszéllyel és lehetőséggel. A Beautiful New World vár rád.\"",
+      text: "Egy vakító fényoszlop hasít bele a sötétségbe. A fényből egy női alak lép ki, akinek arca folyamatosan változik – hol fiatal lány, hol idős bölcs –, de kisugárzása nyugodt és ősi.\n\n\"Üdvözöllek, Elveszett Lélek\" – szólal meg az elmédben. – \"A Földön véget ért az utad, de a sors fonalai még nem varrták el a történetedet. Felajánlok egy új életet a Beautiful New World világában.\"",
       choices: [
-        { id: "2a", text: "Elfogadom. Készen állok az új életre!" },
-        { id: "2b", text: "Milyen képességeket kapok?" },
+        { id: "2a", text: "Hálásan elfogadom az ajánlatot." },
+        { id: "2b", text: "Milyen árat kell fizetnem ezért?" },
       ],
-      imagePrompt: "goddess",
+      imagePrompt: "goddess", // Divine light scene
       hpChange: 0,
-      manaChange: 0,
-      gameOver: false
+      manaChange: 0
     };
   }
 
-  // SCENE 2: Arrival
-  if (lastChoice.includes("Elfogadom") || lastChoice.includes("Készen") || lastChoice.includes("képességeket")) {
+  // 3. KÖR: ERDŐ (4) - Sötét erdő
+  if (historyLength === 4) {
     return {
-      text: "Fényrobbanás vakít el. Úgy érzed, mintha minden sejtedet szétszednék, majd újra összeraknák. \n\nAmikor feleszmélsz, a hátadon fekszel. Hűvös szellő simogatja az arcodat, és az orrodat megcsapja a nedves föld és a fenyő illata. Egy sűrű, ősi erdő közepén vagy. A fák levelei lilás árnyalatban játszanak, az égen pedig két hold halvány körvonala látszik.",
+      text: "\"Az ár csupán annyi, hogy élned kell\" – mosolyog az Istennő, majd egy kézmozdulattal eloszlatja a csillagokat.\n\nZuhanást érzel, majd hirtelen földet érsz. Puha mohán fekszel egy sűrű, ősi erdő közepén. A fák levelei lilásan derengenek a félhomályban, és két hold világít az égen. A levegő tele van nyers mágiával.",
       choices: [
-        { id: "3a", text: "Felállok és körülnézek." },
-        { id: "3b", text: "Megvizsgálom magam, változtam-e valamit." },
+        { id: "3a", text: "Felállok és elindulok az ösvényen." },
+        { id: "3b", text: "Megvizsgálom a környezetemet mágiát keresve." },
       ],
-      imagePrompt: "forest",
+      imagePrompt: "forest", // Forest scene
       hpChange: 0,
-      manaChange: 10, // First mana awaken
-      gameOver: false
+      manaChange: 10
     };
   }
 
-  // SCENE 3: Exploration
-  if (lastChoice.includes("Felállok") || lastChoice.includes("Megvizsgálom")) {
+  // 4. KÖR: FARKAS (6) - Vörös szemek
+  if (historyLength === 6) {
     return {
-      text: "A tested fiatalabbnak, erősebbnek tűnik. A tenyeredbe nézve halványan derengő rúnákat látsz a bőröd alatt. Hirtelen reccsenést hallasz a hátad mögül. Egy hatalmas, agyaras vadkan ront ki a bokrok közül, szemei vörösen izzanak. Nem tűnik barátságosnak.",
+      text: "Alig teszel pár lépést, amikor mély morgást hallasz a hátad mögül. A bokrok közül egy hatalmas, fekete bundájú Árnyfarkas ugrik elő! A szemei vörösen izzanak, agyaraiból savas nyál csepeg a földre. Éhesnek tűnik.",
       choices: [
-        { id: "4a", text: "Megpróbálok varázsolni (Tűzgolyó)." },
-        { id: "4b", text: "Felkapok egy faágat és védekezem." },
-        { id: "4c", text: "Elfutuok." },
+        { id: "4a", text: "Tűzgolyót dobok rá! (Harc)" },
+        { id: "4b", text: "Felmászok egy magas fára. (Menekülés)" },
       ],
-      imagePrompt: "battle",
-      hpChange: 0,
-      manaChange: 0,
-      gameOver: false
-    };
-  }
-
-   // SCENE 4: Combat/Action
-   if (lastChoice.includes("varázsolni")) {
-    return {
-      text: "Ösztönösen kinyújtod a kezed. A tenyeredben lévő rúnák felizzanak, és egy lángcsóva csap ki belőlük! A vadkan visítva hőkölsz hátra, a bundája megperzselődött. A mágia használata azonban kimerít, szédülni kezdesz.",
-      choices: [
-        { id: "5a", text: "Befejezem a dolgot egy újabb támadással!" },
-        { id: "5b", text: "Kihasználom a zavarát és elmenekülök." },
-      ],
-      imagePrompt: "battle",
+      imagePrompt: "wolf", // Danger/Wolf scene
       hpChange: -5,
-      manaChange: -20,
-      gameOver: false
+      manaChange: 0
     };
   }
 
-  // Default Loop for Offline Mode
+  // 5. KÖR: KONFLIKTUS VÉGE (8)
+  if (historyLength === 8) {
+    const isFight = lastChoiceText?.toLowerCase().includes("tűz") || lastChoiceText?.toLowerCase().includes("harc");
+
+    if (isFight) {
+      return {
+        text: "Összegyűjtöd belső erődet, és a tenyeredből egy lángoló gömböt zúdítasz a szörnyre! A farkas vonyítva hőkölsz hátra, bundája füstölögni kezd. Rémülten elmenekül a sötétbe. Győztél, és érzed, ahogy a mágia ereje átjárja a tested.",
+        choices: [
+          { id: "5a", text: "Büszkén folytatom az utam." },
+          { id: "5b", text: "Megpihenek regenerálódni." },
+        ],
+        imagePrompt: "fire", // Fire/Victory scene
+        hpChange: -10,
+        manaChange: -30
+      };
+    } else {
+      return {
+        text: "Gyorsan felkapsz egy alacsony ágra, épp mielőtt az állkapcsok csattannának a bokádon. A farkas megpróbál utánad ugrani, de elvéti. Egy ideig még köröz a fa alatt, majd morogva eloldalog. Megmenekültél.",
+        choices: [
+          { id: "5a", text: "Lemászok és osonva tovább indulok." },
+          { id: "5b", text: "Fent maradok biztonságban." },
+        ],
+        imagePrompt: "hiding", // Tree/Hiding scene
+        hpChange: 0,
+        manaChange: -5
+      };
+    }
+  }
+
+  // 6. KÖR: VÁROS (10) - Kastély sziluett
+  if (historyLength === 10) {
+    return {
+      text: "Végül kiérsz az erdőből. A napfelkelte fényeiben, egy dombtetőről megpillantod a királyság fővárosát. Hatalmas, fehér falak, égbe nyúló tornyok és a távolban egy fenséges, lebegő kristályokkal díszített kastély. Ez lesz az új otthonod.",
+      choices: [
+        { id: "6a", text: "Belépek a városkapun." },
+        { id: "6b", text: "A piactér felé veszem az irányt." },
+      ],
+      imagePrompt: "city", // Castle/City scene
+      hpChange: 10,
+      manaChange: 10
+    };
+  }
+
+  // 7. KÖR: VÉGE (12) - Kocsma fények
+  if (historyLength === 12) {
+    return {
+      text: "A város forgataga magával ragad. Betérsz az 'Arany Griff' fogadóba, ahol vidám lantmuzsika szól. Leülsz egy sarokasztalhoz, rendelsz egy italt, és elmosolyodsz. A kalandod még csak most kezdődik el igazán ebben az új világban.\n\n(Vége a bevezető fejezetnek.)",
+      choices: [
+        { id: "restart", text: "Újraélem a kalandot (Restart)" },
+      ],
+      imagePrompt: "tavern", // Tavern scene
+      hpChange: 20,
+      manaChange: 20,
+      gameOver: true
+    };
+  }
+
+  // Fallback
   return {
-    text: "A kaland folytatódik... (Ez a DEMO verzió vége az offline módban. API kulcs megadása után a történet a végtelenségig generálható.)",
-    choices: [
-      { id: "restart", text: "Újrakezdés" }
-    ],
-    imagePrompt: "village",
-    hpChange: 0,
-    manaChange: 0,
+    text: "A sors fonalai összekuszálódtak.",
+    choices: [{ id: "restart", text: "Újrakezdés" }],
+    imagePrompt: "intro",
     gameOver: true
   };
 };
 
-
-const SYSTEM_INSTRUCTION = `
-Te egy Isekai (Another World) fantasy kalandjáték narrátora vagy.
-Stílus: Epikus, misztikus, kicsit sötét tónusú.
-... (Standard System Prompt) ...
-`;
+// --- MOCK API ---
 
 export const generateStorySegment = async (
   history: { role: 'user' | 'model'; parts: { text: string }[] }[],
   userChoice: string | null
 ): Promise<StoryNode> => {
-  
-  // --- OFFLINE MODE CHECK ---
-  if (!ai) {
-    console.log("Running in Offline/Demo Mode");
-    // Simulate network delay for realism
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return getOfflineStoryNode(history.length, userChoice);
-  }
-
-  // --- ONLINE MODE (GEMINI) ---
-  let prompt = "";
-  if (!userChoice) {
-    prompt = `
-      Kezdd a történetet a legelején! 
-      Helyszín: Modern nagyváros, esős éjszaka.
-      Esemény: A főhős (a játékos) éppen átsétál az úton, amikor elvakítják egy teherautó fényei. Csattanás. Sötétség.
-      Aztán: Hirtelen csend. A játékos kinyitja a szemét egy végtelen, örvénylő csillagköd közepén (vagy fehér ürességben). Előtte lebeg egy ragyogó, titokzatos alak (az Istennő).
-      Az Istennő megszólal: "Érdekes... Egy lélek, amely még nem állt készen a végre."
-      Írd le ezt a jelenetet hangulatosan, és adj válaszlehetőségeket, hogyan reagál a játékos az Istennőre.
-    `;
-  } else {
-    prompt = `A játékos döntése: "${userChoice}". Folytasd a történetet.`;
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", 
-      contents: [
-        ...history,
-        { role: 'user', parts: [{ text: prompt }] }
-      ],
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            text: { type: Type.STRING },
-            choices: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  text: { type: Type.STRING },
-                }
-              }
-            },
-            hpChange: { type: Type.INTEGER },
-            manaChange: { type: Type.INTEGER },
-            imagePrompt: { type: Type.STRING },
-            gameOver: { type: Type.BOOLEAN },
-          },
-          required: ["text", "choices", "imagePrompt", "gameOver"]
-        }
-      }
-    });
-
-    if (response.text) {
-        return JSON.parse(response.text) as StoryNode;
-    }
-    throw new Error("Üres válasz az AI-tól.");
-
-  } catch (error) {
-    console.error("Gemini Story Error:", error);
-    // Fallback to offline node on error too
-    return getOfflineStoryNode(history.length, userChoice);
-  }
+  await new Promise(resolve => setTimeout(resolve, 600));
+  return getStaticStoryNode(history.length, userChoice);
 };
 
 export const generateSceneImage = async (prompt: string): Promise<string | undefined> => {
-  // Offline Mode Image Selector
-  if (!ai) {
-    const lowerPrompt = prompt.toLowerCase();
-    if (lowerPrompt.includes("void") || lowerPrompt.includes("start")) return OFFLINE_IMAGES.void;
-    if (lowerPrompt.includes("goddess") || lowerPrompt.includes("istennő")) return OFFLINE_IMAGES.goddess;
-    if (lowerPrompt.includes("forest") || lowerPrompt.includes("erdő")) return OFFLINE_IMAGES.forest;
-    if (lowerPrompt.includes("battle") || lowerPrompt.includes("fire") || lowerPrompt.includes("attack")) return OFFLINE_IMAGES.battle;
-    return OFFLINE_IMAGES.village; // Default
-  }
-  
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: {
-        parts: [{ text: prompt + " Anime fantasy art style, 8k resolution, highly detailed, atmospheric lighting, masterpiece." }]
-      },
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-    return undefined;
-  } catch (error) {
-    console.error("Gemini Image Error:", error);
-    return OFFLINE_IMAGES.forest; // Fallback image on error
-  }
+  // Most már közvetlenül a prompt kulcsot adjuk vissza, nem URL-t.
+  // A megjelenítést a SceneVisual komponens végzi.
+  return prompt;
 };
