@@ -30,8 +30,6 @@ const App: React.FC = () => {
     currentImage: undefined // Holds the URL
   });
 
-  // Track the scene type ('intro', 'forest') for the CSS visual placeholder
-  // We'll map the complex AI prompts roughly to these keys for the placeholder visual
   const [currentSceneType, setCurrentSceneType] = useState<string>('intro');
   const [imageLoaded, setImageLoaded] = useState(false);
   
@@ -46,8 +44,12 @@ const App: React.FC = () => {
         const response = await generateStorySegment([], null, INITIAL_STATS);
         await updateGameState(response);
       } catch (e) {
-        console.error(e);
-        setGameState(prev => ({ ...prev, isLoading: false, error: "Hiba történt a történet betöltése közben." }));
+        console.error("Game Initialization Failed:", e);
+        setGameState(prev => ({ 
+            ...prev, 
+            isLoading: false, 
+            error: "Hiba történt a történet betöltése közben. Ellenőrizd az internetkapcsolatot vagy az API kulcsot." 
+        }));
         setIsSceneVisible(true);
       }
     };
@@ -64,6 +66,7 @@ const App: React.FC = () => {
 
   // Helper to map complex prompts to simple CSS visual keys
   const getVisualKeyFromPrompt = (prompt: string): string => {
+    if (!prompt) return 'hiding';
     const p = prompt.toLowerCase();
     if (p.includes('space') || p.includes('void') || p.includes('nebula')) return 'intro';
     if (p.includes('forest') || p.includes('tree') || p.includes('woods')) return 'forest';

@@ -1,9 +1,18 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { StoryNode, GameStats } from "../types";
 
-// Initialize Gemini Client
-// Note: process.env.API_KEY is assumed to be available in the environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization of Gemini Client
+let ai: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (!ai) {
+    // Use fallback empty string to prevent constructor crash if key is undefined
+    // The API call itself will fail gracefully with an error message later if key is invalid
+    const apiKey = process.env.API_KEY || ""; 
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 const MODEL_NAME = "gemini-2.5-flash"; // Using Flash for speed/cost balance in interactive games
 
@@ -60,6 +69,8 @@ export const generateStorySegment = async (
 
   // 2. Generate Dynamic Continuation
   try {
+    const client = getAiClient();
+    
     const systemInstruction = `
       You are the Dungeon Master of a 'Beautiful New World', a Dark Fantasy Isekai text adventure.
       
@@ -75,21 +86,18 @@ export const generateStorySegment = async (
       7. Language: HUNGARIAN (Magyar).
     `;
 
-    // Construct the prompt
-    // We pass the conversation history to the model so it remembers context
-    // Ideally, we would compress history if it gets too long, but for this demo, we pass it all.
     const contents = [
       ...history,
       { role: 'user', parts: [{ text: `Player Choice: ${userChoice}. Generate the next scene.` }] }
     ];
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: MODEL_NAME,
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: storySchema,
-        temperature: 0.8, // High creativity for variety
+        temperature: 0.8, 
       },
       contents: contents as any, 
     });
@@ -126,13 +134,9 @@ export const generateStorySegment = async (
 // --- IMAGE GENERATION ---
 
 export const generateSceneImage = async (prompt: string): Promise<string> => {
-  // We use the exact prompt from the AI, adding style modifiers
   const style = "dark fantasy art style, digital painting, artstation, cinematic, masterpiece, highly detailed, dramatic lighting";
   const finalPrompt = encodeURIComponent(`${prompt}, ${style}`);
-  
-  // Random seed for variation even with similar prompts
   const seed = Math.floor(Math.random() * 10000);
   
-  // Using Pollinations.ai
   return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
 };
