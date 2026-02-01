@@ -1,119 +1,178 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { StoryNode, GameStats } from "../types";
+import { StoryNode } from "../types";
 
-// Lazy initialization of Gemini Client
-let ai: GoogleGenAI | null = null;
+// --- OFFLINE STORY ENGINE ---
 
-const getAiClient = () => {
-  if (!ai) {
-    const apiKey = process.env.API_KEY || ""; 
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
-};
-
-const MODEL_NAME = "gemini-2.5-flash";
-
-// --- STATIC INTRO ---
-const getIntroNode = (): StoryNode => {
-  return {
+// Pre-written branching narrative tree
+const STORY_TREE: Record<string, StoryNode> = {
+  intro: {
     text: "A fékcsikorgás emléke lassan elhalványul. Nem érzel fájdalmat, csak végtelen csendet. Kinyitod a szemed, de nem a kórházi mennyezetet látod, hanem egy örvénylő, sötét csillagködöt. Egyedül vagy a semmiben. A tested súlytalan, mintha vízben lebegnél.",
     choices: [
-      { id: "1a", text: "Kiáltok a sötétségbe!" },
-      { id: "1b", text: "Csendben várok és figyelek." },
+      { id: "forest_start", text: "Kiáltok a sötétségbe!" },
+      { id: "ruins_start", text: "Csendben várok és figyelek." },
     ],
-    imagePrompt: "void", // Simple keyword is enough now
+    imagePrompt: "void",
     hpChange: 0,
     manaChange: 0
-  };
-};
-
-// --- DYNAMIC AI ENGINE ---
-
-const storySchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    text: { type: Type.STRING, description: "The narrative segment describing what happens next. Atmospheric, dark fantasy style. 2-3 sentences. In HUNGARIAN." },
-    choices: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          text: { type: Type.STRING, description: "The text of the choice. In HUNGARIAN." }
-        },
-        required: ["id", "text"]
-      },
-      description: "Exactly 2 distinct choices for the player."
-    },
-    imagePrompt: { type: Type.STRING, description: "One or two KEYWORDS describing the biome/location for image selection. Choose from: 'forest', 'cave', 'city', 'castle', 'tavern', 'mountain', 'water', 'fire', 'void', 'ruins', 'snow'. MUST BE ENGLISH." },
-    hpChange: { type: Type.INTEGER, description: "Change in HP. Range -20 to +10." },
-    manaChange: { type: Type.INTEGER, description: "Change in Mana. Negative for using magic, positive for rest." },
-    gameOver: { type: Type.BOOLEAN, description: "True ONLY if HP drops to 0." }
   },
-  required: ["text", "choices", "imagePrompt", "hpChange", "manaChange", "gameOver"]
+  
+  // Ág A: Erdő (Agresszív kezdés)
+  forest_start: {
+    text: "A kiáltásod visszhangzik a semmiben, majd hirtelen zuhanni kezdesz. Puffanva érsz földet egy sűrű, ködös erdő aljnövényzetében. A fák feketék és göcsörtösek, az égboltot pedig nem látni a sűrű lombkoronától. Valami mozog a bokrok között.",
+    choices: [
+      { id: "wolf_encounter", text: "Fegyvert keresek és felkészülök." },
+      { id: "climb_tree", text: "Felmászom egy fára biztonságba." }
+    ],
+    imagePrompt: "forest",
+    hpChange: -5,
+    manaChange: 0
+  },
+  wolf_encounter: {
+    text: "Egy hatalmas, árnyékból szőtt farkas lép elő a ködből. A szemei vörösen izzanak. Nem támad azonnal, csak morog, mintha tesztelné a bátorságodat. A kezed ügyébe akad egy éles kő.",
+    choices: [
+      { id: "wolf_fight", text: "Rátámadok a kővel!" },
+      { id: "wolf_tame", text: "Próbálom megszelídíteni mágiával." }
+    ],
+    imagePrompt: "wolf",
+    hpChange: 0,
+    manaChange: 0
+  },
+  climb_tree: {
+    text: "Felhúzod magad az egyik göcsörtös ágra. A magasból látod, hogy egy farkas szaglássza végig a helyet, ahol az imént voltál, majd elüget. A távolban egy romos torony körvonalai rajzolódnak ki.",
+    choices: [
+      { id: "tower_approach", text: "Elindulok a torony felé." },
+      { id: "forest_sleep", text: "Megpihenek az ágon reggelig." }
+    ],
+    imagePrompt: "forest",
+    hpChange: 0,
+    manaChange: 5
+  },
+  wolf_fight: {
+    text: "A farkas gyorsabb nálad. A karmaiba szaladsz, de sikerül megütnöd a fejét a kővel. Az árnyékfenevad üvöltve szertefoszlik fekete füstté, de a karod csúnyán vérzik.",
+    choices: [
+      { id: "tower_approach", text: "Tovább bicegek a torony felé." },
+      { id: "healing_magic", text: "Megpróbálom begyógyítani a sebem." }
+    ],
+    imagePrompt: "fire",
+    hpChange: -20,
+    manaChange: 0
+  },
+  wolf_tame: {
+    text: "Kinyújtod a kezed és a belső energiádra koncentrálsz. A farkas megérzi a benned rejlő erőt. Lehajtja a fejét, és hagyja, hogy megérintsd. Egy pillanatra eggyé váltok, majd a farkas eltűnik, de érzed, hogy az ereje egy része beléd szállt.",
+    choices: [
+      { id: "tower_approach", text: "Megerősödve indulok a torony felé." },
+      { id: "forest_explore", text: "Körülnézek az erdő mélyén." }
+    ],
+    imagePrompt: "wolf",
+    hpChange: 5,
+    manaChange: -10
+  },
+
+  // Ág B: Romok (Passzív kezdés)
+  ruins_start: {
+    text: "A csendet lassan morajlás váltja fel. Finoman, mint egy tollpihe, ereszkedsz le egy hideg márványpadlóra. Egy ősi, elhagyatott templom romjai között vagy. A levegőben régi tömjén illata száll.",
+    choices: [
+      { id: "altar_search", text: "Megvizsgálom az oltárt." },
+      { id: "ruins_exit", text: "Kimegyek a szabadba." }
+    ],
+    imagePrompt: "ruins",
+    hpChange: 0,
+    manaChange: 5
+  },
+  altar_search: {
+    text: "Az oltáron egy poros, de sértetlen kristályüveg hever, benne vöröslő folyadékkal. Mellette egy régi, bőrkötésű könyv, aminek a betűit nem ismered, de furcsa módon mégis érted.",
+    choices: [
+      { id: "drink_potion", text: "Megiszom a folyadékot." },
+      { id: "read_book", text: "Beleolvasok a könyvbe." }
+    ],
+    imagePrompt: "tavern", // Close enough logic
+    hpChange: 0,
+    manaChange: 0
+  },
+  drink_potion: {
+    text: "A folyadék édes és égető. Érzed, ahogy az életenergia szétárad az ereidben. A sebeid (ha voltak) begyógyulnak, és az izmaid megtelnek erővel.",
+    choices: [
+      { id: "ruins_exit", text: "Most már készen állok kimenni." },
+      { id: "meditate", text: "Meditálok az új erővel." }
+    ],
+    imagePrompt: "goddess",
+    hpChange: 20,
+    manaChange: 0
+  },
+  read_book: {
+    text: "A könyv ősi varázslatokat tartalmaz. Ahogy olvasod, a szavak a fejedbe égnek. Megtanultál egy tűzlabda varázslatot, de a szellemi erőfeszítés kimerített.",
+    choices: [
+      { id: "ruins_exit", text: "Kipróbálom az erőt odakint." },
+      { id: "rest_ruins", text: "Pihenek egyet a kövön." }
+    ],
+    imagePrompt: "city", // library feel
+    hpChange: 0,
+    manaChange: 20
+  },
+  ruins_exit: {
+    text: "Kilépsz a romok közül. Előtted egy hatalmas völgy tárul el, a távolban egy lebegő várossal. A naplementében sárkányok sziluettjei köröznek az égen.",
+    choices: [
+      { id: "city_journey", text: "Elindulok a lebegő város felé." },
+      { id: "valley_camp", text: "Tábort verek a völgyben." }
+    ],
+    imagePrompt: "city",
+    hpChange: 0,
+    manaChange: 0
+  },
+
+  // Konvergencia pontok (egyszerűsített)
+  tower_approach: {
+    text: "A toronyhoz érve látod, hogy az valójában egy ősi mágus lakhelye volt. Az ajtó nyitva áll.",
+    choices: [
+      { id: "enter_tower", text: "Belépek." },
+      { id: "ruins_exit", text: "Inkább a völgy felé megyek." }
+    ],
+    imagePrompt: "city",
+    hpChange: 0,
+    manaChange: 0
+  },
+  enter_tower: {
+    text: "VÉGE A DEMÓNAK. A kalandod itt véget ér ebben a verzióban. Köszönjük a játékot!",
+    choices: [
+      { id: "intro", text: "Újrakezdés" },
+      { id: "intro", text: "Vissza az elejére" }
+    ],
+    imagePrompt: "void",
+    hpChange: 0,
+    manaChange: 0,
+    gameOver: true
+  },
+  city_journey: {
+    text: "VÉGE A DEMÓNAK. A kalandod itt véget ér ebben a verzióban. Köszönjük a játékot!",
+    choices: [
+      { id: "intro", text: "Újrakezdés" },
+      { id: "intro", text: "Vissza az elejére" }
+    ],
+    imagePrompt: "void",
+    hpChange: 0,
+    manaChange: 0,
+    gameOver: true
+  },
+  // Fallbacks
+  forest_explore: { text: "Eltévedtél az erdőben...", choices: [{id: "forest_start", text: "Vissza"}], imagePrompt: "forest", hpChange: -5 },
+  forest_sleep: { text: "Kipihenten ébredsz.", choices: [{id: "tower_approach", text: "Tovább"}], imagePrompt: "forest", hpChange: 10, manaChange: 10 },
+  healing_magic: { text: "Sikerült begyógyítani a sebet.", choices: [{id: "tower_approach", text: "Tovább"}], imagePrompt: "goddess", hpChange: 10, manaChange: -10 },
+  meditate: { text: "A meditáció feltölti a manádat.", choices: [{id: "ruins_exit", text: "Tovább"}], imagePrompt: "void", manaChange: 30 },
+  rest_ruins: { text: "A hideg kövön alvás nem túl pihentető, de túlélted.", choices: [{id: "ruins_exit", text: "Tovább"}], imagePrompt: "ruins", hpChange: 5 }
 };
 
-export const generateStorySegment = async (
-  history: { role: 'user' | 'model'; parts: { text: string }[] }[],
-  userChoice: string | null,
-  currentStats?: GameStats
-): Promise<StoryNode> => {
-  
-  if (history.length === 0) return getIntroNode();
-
-  try {
-    const client = getAiClient();
-    
-    const systemInstruction = `
-      You are the Dungeon Master of 'Beautiful New World', a Dark Fantasy Isekai.
-      Current Stats: HP: ${currentStats?.hp ?? 100}, Mana: ${currentStats?.mana ?? 50}.
-      
-      Tone: Dark Souls / Elden Ring. Mysterious, dangerous, beautiful.
-      Rules:
-      1. Continue the story logically.
-      2. If HP <= 0, game over.
-      3. Language: Narrative/Choices in HUNGARIAN.
-      4. Image Prompt: Return a SINGLE KEYWORD describing the location (e.g., 'forest', 'cave', 'city').
-    `;
-
-    const contents = [
-      ...history,
-      { role: 'user', parts: [{ text: `Action: ${userChoice}. Generate next scene.` }] }
-    ];
-
-    const response = await client.models.generateContent({
-      model: MODEL_NAME,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: storySchema,
-        temperature: 0.8, 
-      },
-      contents: contents as any, 
-    });
-
-    const jsonText = response.text;
-    if (!jsonText) throw new Error("No response");
-    const generatedNode = JSON.parse(jsonText) as StoryNode;
-    
-    generatedNode.choices = generatedNode.choices.map((c, i) => ({
-      ...c,
-      id: c.id || `c_${Date.now()}_${i}`
-    }));
-
-    return generatedNode;
-
-  } catch (error) {
-    console.error("AI Error:", error);
+export const getStoryNode = (nodeId: string): StoryNode => {
+  const node = STORY_TREE[nodeId];
+  if (!node) {
+    // Fallback if ID is missing (should not happen in static tree)
     return {
-      text: "A világ elhomályosodik egy pillanatra, majd újraéled. (Kapcsolódási hiba, de a kaland folytatódik...)",
-      choices: [{ id: "f1", text: "Tovább" }, { id: "f2", text: "Körülnézek" }],
+      text: "A sors fonalai összekuszálódtak. (Hiba: Ismeretlen történet-szál)",
+      choices: [{ id: "intro", text: "Visszatérés a kezdetekhez" }],
       imagePrompt: "void",
       hpChange: 0,
       manaChange: 0
     };
   }
+  return node;
 };
 
 // --- CURATED IMAGE LIBRARY (NO AI GENERATION) ---
@@ -159,6 +218,13 @@ const IMAGE_LIBRARY: Record<string, string[]> = {
   mountain: [
     "photo-1464822759023-fed622ff2c3b", // Dark Mountains
     "photo-1519681393784-d120267933ba", // Snowy Peaks
+  ],
+  wolf: [
+    "photo-1589656966895-2f33e7653819", // Wolf eyes
+    "photo-1474511320723-9a56873867b5", // Wolf in forest
+  ],
+  goddess: [
+    "photo-1500964757637-c85e8a162699", // Mystic Landscape
   ]
 };
 
@@ -181,6 +247,8 @@ export const generateSceneImage = async (prompt: string): Promise<string> => {
   else if (p.includes('fire') || p.includes('burn') || p.includes('hell')) category = 'fire';
   else if (p.includes('water') || p.includes('sea') || p.includes('lake')) category = 'water';
   else if (p.includes('mountain') || p.includes('hill')) category = 'mountain';
+  else if (p.includes('wolf') || p.includes('beast')) category = 'wolf';
+  else if (p.includes('goddess') || p.includes('divine')) category = 'goddess';
 
   const collection = IMAGE_LIBRARY[category] || DEFAULT_IMAGES;
   

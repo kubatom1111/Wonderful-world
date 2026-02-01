@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { INITIAL_STATS, GameState, StoryNode, Choice } from './types';
-import { generateStorySegment, generateSceneImage } from './services/geminiService';
+import { getStoryNode, generateSceneImage } from './services/geminiService';
 import TypewriterText from './components/TypewriterText';
 import StatBar from './components/StatBar';
 import SceneVisual from './components/SceneVisual';
@@ -41,14 +41,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const initGame = async () => {
       try {
-        const response = await generateStorySegment([], null, INITIAL_STATS);
+        const response = getStoryNode('intro');
         await updateGameState(response);
       } catch (e) {
         console.error("Game Initialization Failed:", e);
         setGameState(prev => ({ 
             ...prev, 
             isLoading: false, 
-            error: "Hiba történt a történet betöltése közben. Ellenőrizd az internetkapcsolatot vagy az API kulcsot." 
+            error: "Hiba történt a történet betöltése közben." 
         }));
         setIsSceneVisible(true);
       }
@@ -71,7 +71,7 @@ const App: React.FC = () => {
     if (p.includes('space') || p.includes('void') || p.includes('nebula')) return 'intro';
     if (p.includes('forest') || p.includes('tree') || p.includes('woods')) return 'forest';
     if (p.includes('fire') || p.includes('flame') || p.includes('burn')) return 'fire';
-    if (p.includes('city') || p.includes('castle') || p.includes('town')) return 'city';
+    if (p.includes('city') || p.includes('castle') || p.includes('town') || p.includes('ruin')) return 'city';
     if (p.includes('wolf') || p.includes('beast') || p.includes('monster')) return 'wolf';
     if (p.includes('tavern') || p.includes('inn') || p.includes('bar')) return 'tavern';
     if (p.includes('god') || p.includes('divine') || p.includes('light')) return 'goddess';
@@ -103,14 +103,11 @@ const App: React.FC = () => {
         ...prev,
         stats: { ...prev.stats, hp: newHp, mana: newMana },
         currentText: node.text,
-        currentChoices: isDead ? [{id: 'restart', text: "A lelked visszatér a körforgásba (Új Játék)"}] : node.choices,
+        currentChoices: isDead ? [{id: 'intro', text: "A lelked visszatér a körforgásba (Új Játék)"}] : node.choices,
         isGameOver: isDead || false,
         currentImage: newImageUrl,
         isLoading: false,
-        history: [
-          ...prev.history,
-          { role: 'model', parts: [{ text: JSON.stringify(node) }] } 
-        ]
+        history: [] // No longer needed for static engine
       }));
       
       setTextComplete(false);
@@ -119,25 +116,20 @@ const App: React.FC = () => {
   };
 
   const handleChoice = async (choice: Choice) => {
-    if (choice.id === 'restart') {
-      window.location.reload();
-      return;
+    if (choice.id === 'intro') {
+       // Reset stats on restart
+       setGameState(prev => ({ ...prev, stats: INITIAL_STATS, isLoading: true }));
+    } else {
+       setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     }
-
-    setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     
-    const updatedHistory = [
-      ...gameState.history,
-      { role: 'user' as const, parts: [{ text: choice.text }] }
-    ];
-
     try {
-      // Pass the CURRENT stats so the AI knows if we are dying or strong
-      const response = await generateStorySegment(updatedHistory, choice.text, gameState.stats);
+      // Offline Engine: Pass the choice ID to get the next specific node
+      const response = getStoryNode(choice.id);
       await updateGameState(response);
     } catch (e) {
       console.error(e);
-      setGameState(prev => ({ ...prev, isLoading: false, error: "A sors fonalai elszakadtak. Próbáld újra." }));
+      setGameState(prev => ({ ...prev, isLoading: false, error: "Hiba történt. Próbáld újra." }));
       setIsSceneVisible(true);
     }
   };
