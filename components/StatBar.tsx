@@ -13,9 +13,9 @@ const StatBar: React.FC<StatBarProps> = ({ label, value, max, color, icon }) => 
 
   return (
     <div className="flex flex-col w-full mb-4 group">
-      <div className="flex justify-between items-end mb-2 text-xs uppercase tracking-[0.2em] text-amber-400 font-serif font-bold group-hover:text-amber-200 transition-colors duration-300">
+      <div className="flex justify-between items-end mb-2 text-xs uppercase tracking-[0.2em] text-amber-300 font-serif font-bold group-hover:text-amber-100 transition-colors duration-300">
         <span className="flex items-center gap-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">{icon} {label}</span>
-        <span className="font-sans text-amber-600 group-hover:text-amber-400 transition-colors font-semibold text-sm">{value} / {max}</span>
+        <span className="font-sans text-amber-200 group-hover:text-white transition-colors font-semibold text-sm drop-shadow-md">{value} / {max}</span>
       </div>
       
       <div className="relative w-full h-2 bg-[#0a0500] rounded-full overflow-hidden border border-amber-900/50 shadow-inner">

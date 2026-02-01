@@ -67,6 +67,48 @@ const STORY_TREE: Record<string, StoryNode> = {
     manaChange: -10
   },
 
+  // ÚJ ÁG: Barlangrendszer (Az erdőből nyílik)
+  forest_explore: {
+    text: "Ahogy mélyebbre hatolsz a sűrűben, a talaj lejteni kezd. Egy mohával benőtt, sötét barlangszáj tátong előtted, amelyből hűvös, dohos levegő árad. Valami kékesen dereng odabent.",
+    choices: [
+      { id: "cave_entrance", text: "Belépek a barlangba." },
+      { id: "tower_approach", text: "Inkább a torony felé veszem az irányt." }
+    ],
+    imagePrompt: "cave",
+    hpChange: 0,
+    manaChange: 0
+  },
+  cave_entrance: {
+    text: "A barlang falait foszforeszkáló gombák világítják meg. A járat egy hatalmas földalatti csarnokba torkollik, ahol egy fekete vizű tó terül el. A tó közepén egy sziget van, rajta egy karddal.",
+    choices: [
+      { id: "underground_lake", text: "Átúszom a szigetre." },
+      { id: "drink_cave_water", text: "Iszom a fénylő vízből." }
+    ],
+    imagePrompt: "water",
+    hpChange: 0,
+    manaChange: 5
+  },
+  underground_lake: {
+    text: "A víz jéghideg, de frissítő. Ahogy partot érsz a szigeten, látod, hogy a kard rozsdás, de a markolatában egy hatalmas rubin izzik. Amikor megérinted, a rubin porrá válik és beléd száll.",
+    choices: [
+      { id: "ruins_exit", text: "Kivezető utat keresek a felszínre." },
+      { id: "meditate", text: "Megpihenek a szigeten." }
+    ],
+    imagePrompt: "cave",
+    hpChange: -5,
+    manaChange: 50
+  },
+  drink_cave_water: {
+    text: "A víz íze fémes és édes. Ahogy lenyeled, látomásod támad: látod a Lebegő Várost lángokban állni. Amikor feleszmélsz, erősebbnek érzed magad.",
+    choices: [
+      { id: "ruins_exit", text: "A felszínre sietek." },
+      { id: "cave_entrance", text: "Visszafordulok az erdőbe." }
+    ],
+    imagePrompt: "goddess",
+    hpChange: 15,
+    manaChange: 15
+  },
+
   // Ág B: Romok (Passzív kezdés)
   ruins_start: {
     text: "A csendet lassan morajlás váltja fel. Finoman, mint egy tollpihe, ereszkedsz le egy hideg márványpadlóra. Egy ősi, elhagyatott templom romjai között vagy. A levegőben régi tömjén illata száll.",
@@ -84,7 +126,7 @@ const STORY_TREE: Record<string, StoryNode> = {
       { id: "drink_potion", text: "Megiszom a folyadékot." },
       { id: "read_book", text: "Beleolvasok a könyvbe." }
     ],
-    imagePrompt: "tavern", // Close enough logic
+    imagePrompt: "tavern", 
     hpChange: 0,
     manaChange: 0
   },
@@ -118,46 +160,343 @@ const STORY_TREE: Record<string, StoryNode> = {
     hpChange: 0,
     manaChange: 0
   },
+  valley_camp: {
+      text: "Tüzet raksz és az eget kémleled. A csillagok itt máshogy állnak. Az éjszaka nyugodt, de álmomban egy suttogó hang hívogat a város felé.",
+      choices: [
+          { id: "city_journey", text: "Reggel indulás a városba." },
+          { id: "tower_approach", text: "Inkább a közeli tornyot nézem meg." }
+      ],
+      imagePrompt: "fire",
+      hpChange: 10,
+      manaChange: 10
+  },
 
-  // Konvergencia pontok (egyszerűsített)
+  // Konvergencia és Bővítés 1: MÁGUS TORONY
   tower_approach: {
-    text: "A toronyhoz érve látod, hogy az valójában egy ősi mágus lakhelye volt. Az ajtó nyitva áll.",
+    text: "A toronyhoz érve látod, hogy az valójában egy ősi mágus lakhelye volt. A kapu nyitva áll, de a bentről áradó sötétség baljós.",
     choices: [
-      { id: "enter_tower", text: "Belépek." },
-      { id: "ruins_exit", text: "Inkább a völgy felé megyek." }
+      { id: "enter_tower", text: "Belépek a sötétségbe." },
+      { id: "ruins_exit", text: "Túl veszélyes, visszafordulok." }
     ],
-    imagePrompt: "city",
+    imagePrompt: "ruins",
     hpChange: 0,
     manaChange: 0
   },
   enter_tower: {
-    text: "VÉGE A DEMÓNAK. A kalandod itt véget ér ebben a verzióban. Köszönjük a játékot!",
+    text: "A torony belseje sokkal nagyobbnak tűnik, mint kívülről. Végtelennek tűnő csigalépcső vezet felfelé, lefelé pedig egy pincelabirintus. Egy lebegő fénygömb jelenik meg előtted.",
     choices: [
-      { id: "intro", text: "Újrakezdés" },
-      { id: "intro", text: "Vissza az elejére" }
+      { id: "tower_library", text: "Felmegyek a lépcsőn." },
+      { id: "tower_dungeon", text: "Leereszkedem a mélybe." }
     ],
-    imagePrompt: "void",
+    imagePrompt: "city", // Indoor architecture
     hpChange: 0,
-    manaChange: 0,
-    gameOver: true
+    manaChange: 0
   },
+  tower_library: {
+      text: "Egy hatalmas kör alakú könyvtárba érsz. A könyvek maguktól repkednek a polcok között. A terem közepén egy Árnyékkonstrukt őrzi a főpultot. Észrevesz.",
+      choices: [
+          { id: "shadow_fight", text: "Harcolok a lénnyel!" },
+          { id: "shadow_riddle", text: "Megpróbálok beszélni vele." }
+      ],
+      imagePrompt: "city",
+      hpChange: 0,
+      manaChange: 0
+  },
+  shadow_fight: {
+      text: "A lény testetlen csápokkal támad. A mágiád alig sebzi, de sikerül felborítanod egy könyvespolcot, ami maga alá temeti. Zihálva kutatsz át a maradványait.",
+      choices: [
+          { id: "city_journey", text: "Kimenekülök az ablakon át." },
+          { id: "read_book", text: "Gyorsan elolvasok egy könyvet." }
+      ],
+      imagePrompt: "fire",
+      hpChange: -25,
+      manaChange: -10
+  },
+  shadow_riddle: {
+      text: "'Mi az, ami reggel négy lábon jár, délben kettőn, este háromon?' - kérdezi a lény gépies hangon. Ez túl egyszerű.",
+      choices: [
+          { id: "riddle_human", text: "'Az ember', válaszolod." },
+          { id: "riddle_monster", text: "'Te, ha letépem a lábad', feleled." }
+      ],
+      imagePrompt: "void",
+      hpChange: 0,
+      manaChange: 0
+  },
+  riddle_human: {
+      text: "A lény meghajol és félreáll. A pulton egy térképet találsz, ami egy titkos bejáratot mutat a Lebegő Városba.",
+      choices: [
+          { id: "city_journey", text: "A térkép segítségével indulok." },
+          { id: "meditate", text: "Pihenek a könyvtár békéjében." }
+      ],
+      imagePrompt: "city",
+      hpChange: 0,
+      manaChange: 20
+  },
+  tower_dungeon: {
+      text: "A pince nyirkos és sötét. Ketrecek sorakoznak a falak mentén. Az egyikből halk nyüszítés hallatszik.",
+      choices: [
+          { id: "open_cage", text: "Kinyitom a ketrecet." },
+          { id: "ignore_cage", text: "Továbbmegyek." }
+      ],
+      imagePrompt: "cave",
+      hpChange: 0,
+      manaChange: 0
+  },
+
+  // Konvergencia és Bővítés 2: LEBEGŐ VÁROS ÉS BŐVÍTÉS
   city_journey: {
-    text: "VÉGE A DEMÓNAK. A kalandod itt véget ér ebben a verzióban. Köszönjük a játékot!",
+    text: "Hosszú út után eléred a szakadék szélét. Egy vékony, szélfútta kőhíd vezet át a lebegő szigetre. A kapuban páncélos őrök állják utadat.",
     choices: [
-      { id: "intro", text: "Újrakezdés" },
-      { id: "intro", text: "Vissza az elejére" }
+      { id: "city_gate_fight", text: "Áttörök rajtuk!" },
+      { id: "city_gate_bribe", text: "Megpróbálom megvesztegetni őket." }
     ],
-    imagePrompt: "void",
-    hpChange: 0,
-    manaChange: 0,
-    gameOver: true
+    imagePrompt: "city",
+    hpChange: -5,
+    manaChange: 0
   },
+  city_gate_fight: {
+      text: "Az őrök képzettek, de a váratlan támadásod meglepi őket. Sikerül besurrannod a kapun, de egy nyílvessző súrolja a vállad.",
+      choices: [
+          { id: "city_market", text: "Eltűnök a tömegben a piacon." },
+          { id: "sky_tavern", text: "Egy sikátorba menekülök." }
+      ],
+      imagePrompt: "fire",
+      hpChange: -15,
+      manaChange: -5
+  },
+  city_gate_bribe: {
+      text: "Nincs pénzed, de felajánlasz nekik egy kis mágikus bemutatót. Az őrök lenyűgözve tapsolnak, és átengednek.",
+      choices: [
+          { id: "city_market", text: "Irány a piac!" },
+          { id: "sky_tavern", text: "Megkeresem a kocsmát." }
+      ],
+      imagePrompt: "city",
+      hpChange: 0,
+      manaChange: -10
+  },
+  city_market: {
+      text: "A piactér kavargó forgatag. Különös lények árulnak sárkánypikkelyeket, varázitalokat és ismeretlen gyümölcsöket. Az illatok bódítóak.",
+      choices: [
+          { id: "buy_supplies", text: "Ellátmányt lopok." },
+          { id: "listen_rumors", text: "Híreket hallgatok." }
+      ],
+      imagePrompt: "tavern",
+      hpChange: 0,
+      manaChange: 0
+  },
+  
+  // --- ÚJ KIBŐVÍTETT ÁGAK: LÉGHAJÓK, ALVÁROS ÉS SÁRKÁNYOK ---
+  
+  buy_supplies: {
+      text: "A kereskedő észrevesz és 'Tolvajt!' kiált. Páncélos őrök rontanak elő a tömegből. Nincs sok időd gondolkodni.",
+      choices: [
+          { id: "rooftop_run", text: "Menekülés a tetőkön át!" },
+          { id: "surrender_guard", text: "Megadom magam." }
+      ],
+      imagePrompt: "city",
+      hpChange: 0,
+      manaChange: 0
+  },
+  surrender_guard: {
+      text: "Az őrök lefogna és a börtönbe vetnek. A cellád mélyén egy öreg mágus a szobatársad, aki tanít egy titkos alagútról.",
+      choices: [
+          { id: "tower_dungeon", text: "Megkeresem az alagutat." },
+          { id: "wait_rot", text: "Várok a soromra." }
+      ],
+      imagePrompt: "ruins",
+      hpChange: -10,
+      manaChange: 10
+  },
+  wait_rot: {
+     text: "Évek telnek el. A történeted itt ér véget, elfeledve. (GAME OVER)",
+     choices: [{id: 'intro', text: "Újrakezdés"}],
+     imagePrompt: "void",
+     gameOver: true
+  },
+  rooftop_run: {
+      text: "Felmászol egy stand tetejére, onnan egy erkélyre. A tetőkön ugrálsz, alattad a szédítő mélység. Egy kereskedő léghajó halad el alattad, de egy nyitott csatornafedél is hívogat egy sötét sikátorban.",
+      choices: [
+          { id: "jump_airship", text: "Ugrás a léghajóra!" },
+          { id: "sewer_dive", text: "Le a csatornába!" }
+      ],
+      imagePrompt: "city",
+      hpChange: -5,
+      manaChange: 0
+  },
+  
+  // Alváros Ág
+  sewer_dive: {
+      text: "Büdös, sötét, de biztonságos. A Lebegő Város szennyvízrendszere, az 'Alváros' fogad be. Itt a törvény nem érvényes, csak az erő.",
+      choices: [
+          { id: "black_market", text: "Megkeresem a Feketepiacot." },
+          { id: "cultist_gathering", text: "Kántálást hallok..." }
+      ],
+      imagePrompt: "cave",
+      hpChange: -5,
+      manaChange: 0
+  },
+  black_market: {
+      text: "Lila fáklyák világítják meg a földalatti piacteret. Egy csuklyás alak sárkánytojást kínál, egy másik tiltott tekercseket.",
+      choices: [
+          { id: "buy_scroll", text: "Veszek egy tekercset (Mana)." },
+          { id: "steal_egg", text: "Ellopom a tojást." }
+      ],
+      imagePrompt: "tavern",
+      hpChange: 0,
+      manaChange: 0
+  },
+  buy_scroll: {
+      text: "A tekercs tudása égeti az elmédet. Megtanulod az 'Armageddon' varázslatot, amivel te leszel az Alváros rettegett ura. GYŐZELEM.",
+      choices: [{id: 'intro', text: "Új játék"}],
+      imagePrompt: "fire",
+      gameOver: true
+  },
+  steal_egg: {
+      text: "A tojás forró a kezedben. Kirohansz vele a csatornából egyenesen a pusztaságba. A tojás megreped, és egy kissárkány bújik ki. Mostantól te vagy a Sárkányok Anyja/Apja. GYŐZELEM.",
+      choices: [{id: 'intro', text: "Új játék"}],
+      imagePrompt: "wolf", // Creature vibe
+      gameOver: true
+  },
+  cultist_gathering: {
+      text: "Egy sötét istent idéznek. Észrevesznek. 'Tökéletes áldozat!' - kiáltják. Nincs menekvés. (GAME OVER)",
+      choices: [{id: 'intro', text: "Újrakezdés"}],
+      imagePrompt: "ruins",
+      gameOver: true
+  },
+
+  // Léghajó Ág
+  jump_airship: {
+      text: "Zuhanás... majd puffanás. A 'Vándorló Szél' nevű hajó fedélzetén landolsz. A legénység fegyvert ránt, de a kapitány, egy félszemű elf, int nekik.",
+      choices: [
+          { id: "talk_captain", text: "Munkát ajánlok az útért." },
+          { id: "cast_wind", text: "Szélmágiával bizonyítok." }
+      ],
+      imagePrompt: "void",
+      hpChange: -5,
+      manaChange: 0
+  },
+  talk_captain: {
+      text: "'Bátor bolond vagy' - vigyorog a kapitány. 'Épp a Sárkány-csúcsok felé tartunk. Ha bírod a hideget, maradhatsz.'",
+      choices: [
+          { id: "dragon_peaks_arrival", text: "Velük tartok a hegyekbe." },
+          { id: "mutiny", text: "Inkább átveszem a hajót." }
+      ],
+      imagePrompt: "mountain",
+      hpChange: 0,
+      manaChange: 0
+  },
+  cast_wind: {
+      text: "Megidézed a szeleket, felgyorsítva a hajót. A legénység ujjong. A kapitány tisztelettel bólint. 'Varázsló a fedélzeten! Irány a Kristály-sziget!'",
+      choices: [
+           { id: "crystal_island", text: "Irány a sziget!" },
+           { id: "demand_gold", text: "Aranyat követelek." }
+      ],
+      imagePrompt: "water",
+      hpChange: 0,
+      manaChange: -20
+  },
+  mutiny: {
+      text: "A legénység kinevet, majd egyszerűen kidobnak a hajóról a felhők közé. Zuhanás... (GAME OVER)",
+      choices: [{id: 'intro', text: "Újrakezdés"}],
+      imagePrompt: "void",
+      gameOver: true
+  },
+  demand_gold: {
+      text: "A kapitány nem tűri a zsarolást. Fegyvert ránt és lelő, mielőtt varázsolhatnál. (GAME OVER)",
+      choices: [{id: 'intro', text: "Újrakezdés"}],
+      imagePrompt: "fire",
+      gameOver: true
+  },
+  crystal_island: {
+      text: "A sziget tisztán kristályból van és lebeg az égen. A mágiád itt végtelen. Eggyé válsz a szigettel, te leszel az új Isten. GYŐZELEM.",
+      choices: [{id: 'intro', text: "Új játék"}],
+      imagePrompt: "goddess",
+      gameOver: true
+  },
+  
+  // Sárkány-csúcsok Ág
+  dragon_peaks_arrival: {
+      text: "A hajó kiköt a legmagasabb hegycsúcson. Hó és jég mindenütt. Előtted egy hatalmas barlang, amit sárkánytűz feketített be.",
+      choices: [
+          { id: "enter_dragon_cave", text: "Belépek a barlangba." },
+          { id: "search_ice_flower", text: "Jégvirágot keresek a sziklákon." }
+      ],
+      imagePrompt: "mountain",
+      hpChange: 0,
+      manaChange: 0
+  },
+  enter_dragon_cave: {
+      text: "A sárkány alszik, hatalmas kincshalmon. Egyetlen pikkelye többet ér, mint az életed, de a lehelete halálos.",
+      choices: [
+          { id: "steal_scale", text: "Ellopok egy pikkelyt." },
+          { id: "worship_dragon", text: "Imádkozom hozzá." }
+      ],
+      imagePrompt: "cave",
+      hpChange: 0,
+      manaChange: 0
+  },
+  steal_scale: {
+      text: "Sikerül! De a sárkány egyik szeme kinyílik. Futás! Leugrasz a hegyről, és a zuhanás közben rájössz, hogy a pikkely varázsereje szárnyakat ad. Szabad vagy! GYŐZELEM.",
+      choices: [{id: 'intro', text: "Új játék"}],
+      imagePrompt: "void",
+      gameOver: true
+  },
+  worship_dragon: {
+      text: "A sárkányt nem hatja meg az imádásod. Egyetlen lángcsóvával hamuvá tesz. (GAME OVER)",
+      choices: [{id: 'intro', text: "Újrakezdés"}],
+      imagePrompt: "fire",
+      gameOver: true
+  },
+  search_ice_flower: {
+      text: "Megtalálod a legendás Jégvirágot a szirten. Aki megeszi, örök életet nyer, de lassan jégszoborrá válik. Ezt választod. GYŐZELEM (vagy átok?).",
+      choices: [{id: 'intro', text: "Új játék"}],
+      imagePrompt: "mountain",
+      gameOver: true
+  },
+
+  listen_rumors: {
+      text: "A piacon suttogják, hogy a Király valójában egy sárkány, és a 'Vándorló Szél' léghajó ma indul a csúcsokhoz.",
+      choices: [
+          {id: "sky_tavern", text: "Kocsmázni megyek"},
+          {id: "jump_airship", text: "Megkeresem a léghajót"}
+      ],
+      imagePrompt: "city",
+      hpChange: 0,
+      manaChange: 5
+  },
+  sky_tavern: {
+      text: "Az 'Égi Kancsó' kocsma tele van kalandorokkal. A csapos egy négykezű óriás. A sarokban egy köpenyes alak téged figyel.",
+      choices: [
+          { id: "talk_stranger", text: "Odamegyek az alakhoz." },
+          { id: "order_drink", text: "Iszom valamit." }
+      ],
+      imagePrompt: "tavern",
+      hpChange: 0,
+      manaChange: 0
+  },
+
+  // ENDINGS (Old)
+  talk_stranger: {
+      text: "Az alak leveszi csuklyáját. Te vagy az, de öregebben. 'Már vártalak' - mondja, és átnyújt egy gömböt, amiben a saját világod látszik. VÉGE AZ ELSŐ FEJEZETNEK.",
+      choices: [
+        { id: "intro", text: "Újrakezdés" },
+        { id: "intro", text: "Vissza az elejére" }
+      ],
+      imagePrompt: "void",
+      hpChange: 0,
+      manaChange: 0,
+      gameOver: true
+  },
+
   // Fallbacks
-  forest_explore: { text: "Eltévedtél az erdőben...", choices: [{id: "forest_start", text: "Vissza"}], imagePrompt: "forest", hpChange: -5 },
   forest_sleep: { text: "Kipihenten ébredsz.", choices: [{id: "tower_approach", text: "Tovább"}], imagePrompt: "forest", hpChange: 10, manaChange: 10 },
   healing_magic: { text: "Sikerült begyógyítani a sebet.", choices: [{id: "tower_approach", text: "Tovább"}], imagePrompt: "goddess", hpChange: 10, manaChange: -10 },
-  meditate: { text: "A meditáció feltölti a manádat.", choices: [{id: "ruins_exit", text: "Tovább"}], imagePrompt: "void", manaChange: 30 },
-  rest_ruins: { text: "A hideg kövön alvás nem túl pihentető, de túlélted.", choices: [{id: "ruins_exit", text: "Tovább"}], imagePrompt: "ruins", hpChange: 5 }
+  meditate: { text: "A meditáció feltölti a manádat és megnyugtatja a lelked.", choices: [{id: "ruins_exit", text: "Tovább"}], imagePrompt: "void", hpChange: 5, manaChange: 30 },
+  rest_ruins: { text: "A hideg kövön alvás nem túl pihentető, de túlélted.", choices: [{id: "ruins_exit", text: "Tovább"}], imagePrompt: "ruins", hpChange: 5 },
+  riddle_monster: { text: "A lény megzavarodik a választól, szikrákat szór, majd leáll. Szabad az út.", choices: [{id: "city_journey", text: "Tovább"}], imagePrompt: "ruins", hpChange: 0, manaChange: 0 },
+  open_cage: { text: "Egy kis tündér repül ki a ketrecből. Hálából meggyógyít, majd eltűnik a falon át.", choices: [{id: "tower_library", text: "Vissza fel"}], imagePrompt: "goddess", hpChange: 20, manaChange: 20 },
+  ignore_cage: { text: "A lelkiismereted furdal, de sietned kell. Visszatérsz a lépcsőházba.", choices: [{id: "tower_library", text: "Fel a könyvtárba"}], imagePrompt: "cave", hpChange: 0, manaChange: 0 },
+  order_drink: { text: "A pia erős, és kicsit hallucinálsz tőle, de a mana szinted az egekbe szökik.", choices: [{id: "talk_stranger", text: "Megnézem a köpenyest"}], imagePrompt: "tavern", hpChange: -5, manaChange: 50 },
 };
 
 export const getStoryNode = (nodeId: string): StoryNode => {
